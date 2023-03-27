@@ -1,0 +1,191 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualWans_vwan_name": {
+            "defaultValue": "vwan",
+            "type": "String"
+        },
+        "virtualHubs_eus2hub_name": {
+            "defaultValue": "eus2hub",
+            "type": "String"
+        },
+        "firewallPolicies_AzFW_Policy_name": {
+            "defaultValue": "AzFW_Policy",
+            "type": "String"
+        },
+        "azureFirewalls_AzureFirewall_eus2hub_name": {
+            "defaultValue": "AzureFirewall_eus2hub",
+            "type": "String"
+        },
+        "vpnGateways_d6bb4daf422c40aba68833e213e85949_eastus2_gw_name": {
+            "defaultValue": "d6bb4daf422c40aba68833e213e85949-eastus2-gw",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Network/firewallPolicies",
+            "apiVersion": "2022-07-01",
+            "name": "[parameters('firewallPolicies_AzFW_Policy_name')]",
+            "location": "eastus2",
+            "properties": {
+                "sku": {
+                    "tier": "Basic"
+                },
+                "threatIntelMode": "Off",
+                "threatIntelWhitelist": {
+                    "fqdns": [],
+                    "ipAddresses": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualWans",
+            "apiVersion": "2022-07-01",
+            "name": "[parameters('virtualWans_vwan_name')]",
+            "location": "eastus2",
+            "properties": {
+                "disableVpnEncryption": false,
+                "allowBranchToBranchTraffic": true,
+                "office365LocalBreakoutCategory": "None",
+                "type": "Standard"
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualHubs/hubRouteTables",
+            "apiVersion": "2022-07-01",
+            "name": "[concat(parameters('virtualHubs_eus2hub_name'), '/defaultRouteTable')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualHubs', parameters('virtualHubs_eus2hub_name'))]"
+            ],
+            "properties": {
+                "routes": [],
+                "labels": [
+                    "default"
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualHubs/hubRouteTables",
+            "apiVersion": "2022-07-01",
+            "name": "[concat(parameters('virtualHubs_eus2hub_name'), '/noneRouteTable')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualHubs', parameters('virtualHubs_eus2hub_name'))]"
+            ],
+            "properties": {
+                "routes": [],
+                "labels": [
+                    "none"
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/vpnGateways",
+            "apiVersion": "2022-07-01",
+            "name": "[parameters('vpnGateways_d6bb4daf422c40aba68833e213e85949_eastus2_gw_name')]",
+            "location": "eastus2",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualHubs', parameters('virtualHubs_eus2hub_name'))]"
+            ],
+            "properties": {
+                "connections": [],
+                "virtualHub": {
+                    "id": "[resourceId('Microsoft.Network/virtualHubs', parameters('virtualHubs_eus2hub_name'))]"
+                },
+                "bgpSettings": {
+                    "asn": 65515,
+                    "peerWeight": 0,
+                    "bgpPeeringAddresses": [
+                        {
+                            "ipconfigurationId": "Instance0",
+                            "customBgpIpAddresses": []
+                        },
+                        {
+                            "ipconfigurationId": "Instance1",
+                            "customBgpIpAddresses": []
+                        }
+                    ]
+                },
+                "vpnGatewayScaleUnit": 1,
+                "natRules": [],
+                "enableBgpRouteTranslationForNat": false,
+                "isRoutingPreferenceInternet": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/azureFirewalls",
+            "apiVersion": "2022-07-01",
+            "name": "[parameters('azureFirewalls_AzureFirewall_eus2hub_name')]",
+            "location": "eastus2",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualHubs', parameters('virtualHubs_eus2hub_name'))]",
+                "[resourceId('Microsoft.Network/firewallPolicies', parameters('firewallPolicies_AzFW_Policy_name'))]"
+            ],
+            "properties": {
+                "sku": {
+                    "name": "AZFW_Hub",
+                    "tier": "Basic"
+                },
+                "additionalProperties": {},
+                "virtualHub": {
+                    "id": "[resourceId('Microsoft.Network/virtualHubs', parameters('virtualHubs_eus2hub_name'))]"
+                },
+                "hubIPAddresses": {
+                    "privateIPAddress": "10.50.64.4",
+                    "publicIPs": {
+                        "addresses": [
+                            {
+                                "address": "20.114.232.182"
+                            }
+                        ],
+                        "count": 1
+                    }
+                },
+                "firewallPolicy": {
+                    "id": "[resourceId('Microsoft.Network/firewallPolicies', parameters('firewallPolicies_AzFW_Policy_name'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualHubs",
+            "apiVersion": "2022-07-01",
+            "name": "[parameters('virtualHubs_eus2hub_name')]",
+            "location": "eastus2",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualWans', parameters('virtualWans_vwan_name'))]",
+                "[resourceId('Microsoft.Network/vpnGateways', parameters('vpnGateways_d6bb4daf422c40aba68833e213e85949_eastus2_gw_name'))]",
+                "[resourceId('Microsoft.Network/azureFirewalls', parameters('azureFirewalls_AzureFirewall_eus2hub_name'))]"
+            ],
+            "properties": {
+                "virtualHubRouteTableV2s": [],
+                "addressPrefix": "10.50.0.0/16",
+                "virtualRouterAsn": 65515,
+                "virtualRouterIps": [
+                    "10.50.32.4",
+                    "10.50.32.5"
+                ],
+                "routeTable": {
+                    "routes": []
+                },
+                "virtualRouterAutoScaleConfiguration": {
+                    "minCapacity": 2
+                },
+                "virtualWan": {
+                    "id": "[resourceId('Microsoft.Network/virtualWans', parameters('virtualWans_vwan_name'))]"
+                },
+                "vpnGateway": {
+                    "id": "[resourceId('Microsoft.Network/vpnGateways', parameters('vpnGateways_d6bb4daf422c40aba68833e213e85949_eastus2_gw_name'))]"
+                },
+                "azureFirewall": {
+                    "id": "[resourceId('Microsoft.Network/azureFirewalls', parameters('azureFirewalls_AzureFirewall_eus2hub_name'))]"
+                },
+                "sku": "Standard",
+                "routingState": "Provisioned",
+                "allowBranchToBranchTraffic": false,
+                "hubRoutingPreference": "VpnGateway"
+            }
+        }
+    ]
+}
