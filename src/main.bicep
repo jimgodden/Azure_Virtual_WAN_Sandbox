@@ -54,6 +54,9 @@ resource vHub 'Microsoft.Network/virtualHubs@2022-07-01' = {
     virtualWan: {
       id: VWAN.id
     }
+    azureFirewall: {
+      id: AzFW.id
+    }
     sku: 'Standard'
     allowBranchToBranchTraffic: false
     hubRoutingPreference: 'VpnGateway'
@@ -88,7 +91,7 @@ resource vHub_RouteTable_None 'Microsoft.Network/virtualHubs/hubRouteTables@2022
   ]
 }
 
-resource vpnGateways_d6bb4daf422c40aba68833e213e85949_eastus2_gw_name_resource 'Microsoft.Network/vpnGateways@2022-07-01' = {
+resource AzureVNG 'Microsoft.Network/vpnGateways@2022-07-01' = {
   name: AzureVNG_Name
   location: location
   properties: {
@@ -96,20 +99,20 @@ resource vpnGateways_d6bb4daf422c40aba68833e213e85949_eastus2_gw_name_resource '
     virtualHub: {
       id: vHub.id
     }
-    bgpSettings: {
-      asn: 65515
-      peerWeight: 0
-      bgpPeeringAddresses: [
-        {
-          ipconfigurationId: 'Instance0'
-          customBgpIpAddresses: []
-        }
-        {
-          ipconfigurationId: 'Instance1'
-          customBgpIpAddresses: []
-        }
-      ]
-    }
+    // bgpSettings: {
+    //   asn: 65515
+    //   peerWeight: 0
+    //   bgpPeeringAddresses: [
+    //     {
+    //       ipconfigurationId: 'Instance0'
+    //       customBgpIpAddresses: []
+    //     }
+    //     {
+    //       ipconfigurationId: 'Instance1'
+    //       customBgpIpAddresses: []
+    //     }
+    //   ]
+    // }
     vpnGatewayScaleUnit: 1
     natRules: []
     enableBgpRouteTranslationForNat: false
@@ -124,11 +127,11 @@ resource AzFW_Policy 'Microsoft.Network/firewallPolicies@2022-07-01' = {
     sku: {
       tier: AzFW_SKU
     }
-    threatIntelMode: 'Off'
-    threatIntelWhitelist: {
-      fqdns: []
-      ipAddresses: []
-    }
+    //threatIntelMode: 'Off'
+    // threatIntelWhitelist: {
+    //   fqdns: []
+    //   ipAddresses: []
+    // }
   }
 }
 
@@ -141,14 +144,14 @@ resource AzFW 'Microsoft.Network/azureFirewalls@2022-07-01' = {
       tier: AzFW_SKU
     }
     additionalProperties: {}
-    virtualHub: {
-      id: vHub.id
-    }
-    hubIPAddresses: {
-      publicIPs: {
-        count: 1
-      }
-    }
+    // virtualHub: {
+    //   id: vHub.id
+    // }
+    // hubIPAddresses: {
+    //   publicIPs: {
+    //     count: 1
+    //   }
+    // }
     firewallPolicy: {
       id: AzFW_Policy.id
     }
