@@ -44,6 +44,7 @@ resource vHub 'Microsoft.Network/virtualHubs@2022-07-01' = {
   properties: {
     virtualHubRouteTableV2s: []
     addressPrefix: vHub1_AddressPrefix
+    
     virtualRouterAsn: 65515
     routeTable: {
       routes: []
@@ -54,9 +55,10 @@ resource vHub 'Microsoft.Network/virtualHubs@2022-07-01' = {
     virtualWan: {
       id: VWAN.id
     }
-    azureFirewall: {
-      id: AzFW.id
-    }
+    // azureFirewall: {
+      
+    //   id: AzFW.id
+    // }
     sku: 'Standard'
     allowBranchToBranchTraffic: false
     hubRoutingPreference: 'VpnGateway'
@@ -144,14 +146,14 @@ resource AzFW 'Microsoft.Network/azureFirewalls@2022-07-01' = {
       tier: AzFW_SKU
     }
     additionalProperties: {}
-    // virtualHub: {
-    //   id: vHub.id
-    // }
-    // hubIPAddresses: {
-    //   publicIPs: {
-    //     count: 1
-    //   }
-    // }
+    virtualHub: {
+      id: vHub.id
+    }
+    hubIPAddresses: {
+      publicIPs: {
+        count: 1
+      }
+    }
     firewallPolicy: {
       id: AzFW_Policy.id
     }
