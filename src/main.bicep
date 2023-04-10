@@ -42,16 +42,16 @@ resource vHub 'Microsoft.Network/virtualHubs@2022-07-01' = {
   name: vHub1_Name
   location: location
   properties: {
-    virtualHubRouteTableV2s: []
+    // virtualHubRouteTableV2s: []
     addressPrefix: vHub1_AddressPrefix
     
-    virtualRouterAsn: 65515
-    routeTable: {
-      routes: []
-    }
-    virtualRouterAutoScaleConfiguration: {
-      minCapacity: 2
-    }
+    // virtualRouterAsn: 65515
+    // routeTable: {
+    //   routes: []
+    // }
+    // virtualRouterAutoScaleConfiguration: {
+    //   minCapacity: 2
+    // }
     virtualWan: {
       id: VWAN.id
     }
@@ -59,7 +59,7 @@ resource vHub 'Microsoft.Network/virtualHubs@2022-07-01' = {
       
     //   id: AzFW.id
     // }
-    sku: 'Standard'
+    // sku: 'Standard'
     allowBranchToBranchTraffic: false
     hubRoutingPreference: 'VpnGateway'
   }
@@ -129,7 +129,7 @@ resource AzFW_Policy 'Microsoft.Network/firewallPolicies@2022-07-01' = {
     sku: {
       tier: AzFW_SKU
     }
-    //threatIntelMode: 'Off'
+    // threatIntelMode: 'Off'
     // threatIntelWhitelist: {
     //   fqdns: []
     //   ipAddresses: []
@@ -140,9 +140,14 @@ resource AzFW_Policy 'Microsoft.Network/firewallPolicies@2022-07-01' = {
 resource AzFW 'Microsoft.Network/azureFirewalls@2022-07-01' = {
   name: AzFW_Name
   location: location
+  zones: [
+    '1'
+    '2'
+    '3'
+  ]
   properties: {
     sku: {
-      //name: AzFW
+      name: 'AzFW_Hub'
       tier: AzFW_SKU
     }
     additionalProperties: {}
