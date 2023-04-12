@@ -1,3 +1,2 @@
 deployment.ps1
-deploymentCount.dat
-src/original_files/
+deploymentEnvironment.dat
