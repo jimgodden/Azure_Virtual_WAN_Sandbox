@@ -53,30 +53,25 @@ resource vHub 'Microsoft.Network/virtualHubs@2022-07-01' = {
 
 
 resource vHub_RouteTable_Default 'Microsoft.Network/virtualHubs/hubRouteTables@2022-07-01' = {
-  //parent: virtualHubs_eus2hub_name_resource
-  name: '${vHub1_Name}/defaultRouteTable'
+  parent: vHub
+  name: 'defaultRouteTable'
   properties: {
     routes: []
     labels: [
       'default'
     ]
   }
-  dependsOn: [
-    vHub
-  ]
 }
 
 resource vHub_RouteTable_None 'Microsoft.Network/virtualHubs/hubRouteTables@2022-07-01' = {
-  name: '${vHub1_Name}/noneRouteTable'
+  parent: vHub
+  name: 'noneRouteTable'
   properties: {
     routes: []
     labels: [
       'none'
     ]
   }
-  dependsOn: [
-    vHub
-  ]
 }
 
 resource AzureVNG 'Microsoft.Network/vpnGateways@2022-07-01' = {
