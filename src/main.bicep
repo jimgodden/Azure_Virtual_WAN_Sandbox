@@ -1,17 +1,16 @@
 @description('Name of the Virtual WAN resource')
 param VWAN_Name string = 'vwan'
 
+@description('Current vHub Iteration')
+@minValue(1)
+@maxValue(9)
+param vHubIteration int = 1
+
 @description('Name of the first Virtual Hub within the Virtual WAN')
-param vHub1_Name string = 'vhub1'
+param vHub1_Name string = 'vhub${vHubIteration}'
 
 @description('Address Prefix of the first Virtual Hub')
-param vHub1_AddressPrefix string = '10.50.0.0/16'
-
-// @description('Name of the first Virtual Hub within the Virtual WAN')
-// param vHub2_Name string = 'vhub2'
-
-// @description('Address Prefix of the first Virtual Hub')
-// param vHub2_AddressPrefix string = '10.150.0.0/16'
+param vHub1_AddressPrefix string = '10.${vHubIteration}0.0.0/16'
 
 @description('Name of the Azure Firewall within the Virtual Hub')
 param AzFW_Name string = 'AzFW'
@@ -79,6 +78,42 @@ resource vHub_RouteTable_None 'Microsoft.Network/virtualHubs/hubRouteTables@2022
     ]
   }
 }
+
+// TODO Start - Clean up and verify
+resource vHubVNetConn 'Microsoft.Network/virtualHubs/hubVirtualNetworkConnections@2022-09-01' = {
+  parent: vHub
+  name: 'test1'
+  properties: {
+    routingConfiguration: {
+      associatedRouteTable: {
+        id: virtualHubs_vhub1_name_defaultRouteTable.id
+      }
+      propagatedRouteTables: {
+        labels: [
+          'default'
+        ]
+        ids: [
+          {
+            id: virtualHubs_vhub1_name_defaultRouteTable.id
+          }
+        ]
+      }
+      vnetRoutes: {
+        staticRoutes: []
+        staticRoutesConfig: {
+          vnetLocalRouteOverrideCriteria: 'Contains'
+        }
+      }
+    }
+    remoteVirtualNetwork: {
+      id: virtualNetworks_vnet1_externalid
+    }
+    allowHubToRemoteVnetTransit: true
+    allowRemoteVnetToUseHubVnetGateways: true
+    enableInternetSecurity: true
+  }
+}
+// TODO End
 
 resource AzureVNG 'Microsoft.Network/vpnGateways@2022-07-01' = {
   name: AzureVNG_Name

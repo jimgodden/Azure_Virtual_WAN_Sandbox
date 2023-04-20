@@ -1,0 +1,301 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "virtualNetworks_vnet1_name": {
+      "type": "String"
+    },
+    "virtualNetworks_vnet2_name": {
+      "type": "String"
+    },
+    "networkSecurityGroups_Default_NSG_name": {
+      "type": "String"
+    },
+    "virtualNetworks_HV_vhub1_6d1cd796_6a1f_4ebb_a426_c5e8ce80e129_externalid": {
+      "type": "String"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('networkSecurityGroups_Default_NSG_name')]",
+      "location": "eastus2",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups/securityRules', parameters('networkSecurityGroups_Default_NSG_name'), 'rule2')]"
+      ],
+      "properties": {
+        "securityRules": [
+          {
+            "name": "rule2",
+            "id": "[resourceId('Microsoft.Network/networkSecurityGroups/securityRules', parameters('networkSecurityGroups_Default_NSG_name'), 'rule2')]",
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "properties": {
+              "description": "test",
+              "protocol": "*",
+              "sourcePortRange": "*",
+              "destinationPortRange": "8080",
+              "sourceAddressPrefix": "10.0.0.1/32",
+              "destinationAddressPrefix": "10.52.0.4",
+              "access": "Allow",
+              "priority": 100,
+              "direction": "Inbound",
+              "sourcePortRanges": [],
+              "destinationPortRanges": [],
+              "sourceAddressPrefixes": [],
+              "destinationAddressPrefixes": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+      "apiVersion": "2022-09-01",
+      "name": "[concat(parameters('networkSecurityGroups_Default_NSG_name'), '/rule2')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_Default_NSG_name'))]"
+      ],
+      "properties": {
+        "description": "test",
+        "protocol": "*",
+        "sourcePortRange": "*",
+        "destinationPortRange": "8080",
+        "sourceAddressPrefix": "10.0.0.1/32",
+        "destinationAddressPrefix": "10.52.0.4",
+        "access": "Allow",
+        "priority": 100,
+        "direction": "Inbound",
+        "sourcePortRanges": [],
+        "destinationPortRanges": [],
+        "sourceAddressPrefixes": [],
+        "destinationAddressPrefixes": []
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+      "apiVersion": "2022-09-01",
+      "name": "[concat(parameters('virtualNetworks_vnet1_name'), '/RemoteVnetToHubPeering_2156ff51-91b0-4a39-8ee6-39531ab2dac8')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_vnet1_name'))]"
+      ],
+      "properties": {
+        "peeringState": "Connected",
+        "peeringSyncLevel": "FullyInSync",
+        "remoteVirtualNetwork": {
+          "id": "[parameters('virtualNetworks_HV_vhub1_6d1cd796_6a1f_4ebb_a426_c5e8ce80e129_externalid')]"
+        },
+        "allowVirtualNetworkAccess": true,
+        "allowForwardedTraffic": false,
+        "allowGatewayTransit": false,
+        "useRemoteGateways": true,
+        "doNotVerifyRemoteGateways": true,
+        "remoteAddressSpace": {
+          "addressPrefixes": [
+            "10.50.0.0/16"
+          ]
+        },
+        "remoteVirtualNetworkAddressSpace": {
+          "addressPrefixes": [
+            "10.50.0.0/16"
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+      "apiVersion": "2022-09-01",
+      "name": "[concat(parameters('virtualNetworks_vnet2_name'), '/RemoteVnetToHubPeering_2156ff51-91b0-4a39-8ee6-39531ab2dac8')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_vnet2_name'))]"
+      ],
+      "properties": {
+        "peeringState": "Connected",
+        "peeringSyncLevel": "FullyInSync",
+        "remoteVirtualNetwork": {
+          "id": "[parameters('virtualNetworks_HV_vhub1_6d1cd796_6a1f_4ebb_a426_c5e8ce80e129_externalid')]"
+        },
+        "allowVirtualNetworkAccess": true,
+        "allowForwardedTraffic": false,
+        "allowGatewayTransit": false,
+        "useRemoteGateways": true,
+        "doNotVerifyRemoteGateways": true,
+        "remoteAddressSpace": {
+          "addressPrefixes": [
+            "10.50.0.0/16"
+          ]
+        },
+        "remoteVirtualNetworkAddressSpace": {
+          "addressPrefixes": [
+            "10.50.0.0/16"
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2022-09-01",
+      "name": "[concat(parameters('virtualNetworks_vnet1_name'), '/subnet1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_vnet1_name'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_Default_NSG_name'))]"
+      ],
+      "properties": {
+        "addressPrefix": "10.51.0.0/24",
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_Default_NSG_name'))]"
+        },
+        "delegations": [],
+        "privateEndpointNetworkPolicies": "Disabled",
+        "privateLinkServiceNetworkPolicies": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2022-09-01",
+      "name": "[concat(parameters('virtualNetworks_vnet2_name'), '/subnet2')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_vnet2_name'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_Default_NSG_name'))]"
+      ],
+      "properties": {
+        "addressPrefix": "10.52.0.0/24",
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_Default_NSG_name'))]"
+        },
+        "delegations": [],
+        "privateEndpointNetworkPolicies": "Disabled",
+        "privateLinkServiceNetworkPolicies": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('virtualNetworks_vnet1_name')]",
+      "location": "eastus2",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_vnet1_name'), 'subnet1')]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_Default_NSG_name'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks/virtualNetworkPeerings', parameters('virtualNetworks_vnet1_name'), 'RemoteVnetToHubPeering_2156ff51-91b0-4a39-8ee6-39531ab2dac8')]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.51.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "subnet1",
+            "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_vnet1_name'), 'subnet1')]",
+            "properties": {
+              "addressPrefix": "10.51.0.0/24",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_Default_NSG_name'))]"
+              },
+              "delegations": [],
+              "privateEndpointNetworkPolicies": "Disabled",
+              "privateLinkServiceNetworkPolicies": "Enabled"
+            },
+            "type": "Microsoft.Network/virtualNetworks/subnets"
+          }
+        ],
+        "virtualNetworkPeerings": [
+          {
+            "name": "RemoteVnetToHubPeering_2156ff51-91b0-4a39-8ee6-39531ab2dac8",
+            "id": "[resourceId('Microsoft.Network/virtualNetworks/virtualNetworkPeerings', parameters('virtualNetworks_vnet1_name'), 'RemoteVnetToHubPeering_2156ff51-91b0-4a39-8ee6-39531ab2dac8')]",
+            "properties": {
+              "peeringState": "Connected",
+              "peeringSyncLevel": "FullyInSync",
+              "remoteVirtualNetwork": {
+                "id": "[parameters('virtualNetworks_HV_vhub1_6d1cd796_6a1f_4ebb_a426_c5e8ce80e129_externalid')]"
+              },
+              "allowVirtualNetworkAccess": true,
+              "allowForwardedTraffic": false,
+              "allowGatewayTransit": false,
+              "useRemoteGateways": true,
+              "doNotVerifyRemoteGateways": true,
+              "remoteAddressSpace": {
+                "addressPrefixes": [
+                  "10.50.0.0/16"
+                ]
+              },
+              "remoteVirtualNetworkAddressSpace": {
+                "addressPrefixes": [
+                  "10.50.0.0/16"
+                ]
+              }
+            },
+            "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings"
+          }
+        ],
+        "enableDdosProtection": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('virtualNetworks_vnet2_name')]",
+      "location": "eastus2",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_vnet2_name'), 'subnet2')]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_Default_NSG_name'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks/virtualNetworkPeerings', parameters('virtualNetworks_vnet2_name'), 'RemoteVnetToHubPeering_2156ff51-91b0-4a39-8ee6-39531ab2dac8')]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.52.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "subnet2",
+            "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_vnet2_name'), 'subnet2')]",
+            "properties": {
+              "addressPrefix": "10.52.0.0/24",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_Default_NSG_name'))]"
+              },
+              "delegations": [],
+              "privateEndpointNetworkPolicies": "Disabled",
+              "privateLinkServiceNetworkPolicies": "Enabled"
+            },
+            "type": "Microsoft.Network/virtualNetworks/subnets"
+          }
+        ],
+        "virtualNetworkPeerings": [
+          {
+            "name": "RemoteVnetToHubPeering_2156ff51-91b0-4a39-8ee6-39531ab2dac8",
+            "id": "[resourceId('Microsoft.Network/virtualNetworks/virtualNetworkPeerings', parameters('virtualNetworks_vnet2_name'), 'RemoteVnetToHubPeering_2156ff51-91b0-4a39-8ee6-39531ab2dac8')]",
+            "properties": {
+              "peeringState": "Connected",
+              "peeringSyncLevel": "FullyInSync",
+              "remoteVirtualNetwork": {
+                "id": "[parameters('virtualNetworks_HV_vhub1_6d1cd796_6a1f_4ebb_a426_c5e8ce80e129_externalid')]"
+              },
+              "allowVirtualNetworkAccess": true,
+              "allowForwardedTraffic": false,
+              "allowGatewayTransit": false,
+              "useRemoteGateways": true,
+              "doNotVerifyRemoteGateways": true,
+              "remoteAddressSpace": {
+                "addressPrefixes": [
+                  "10.50.0.0/16"
+                ]
+              },
+              "remoteVirtualNetworkAddressSpace": {
+                "addressPrefixes": [
+                  "10.50.0.0/16"
+                ]
+              }
+            },
+            "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings"
+          }
+        ],
+        "enableDdosProtection": false
+      }
+    }
+  ]
+}
