@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.6.18.56646",
-      "templateHash": "6830114683150786522"
+      "templateHash": "18361119198063030150"
     }
   },
   "parameters": {
@@ -18,7 +18,7 @@
     },
     "vHub1_Name": {
       "type": "string",
-      "defaultValue": "vhub",
+      "defaultValue": "vhub1",
       "metadata": {
         "description": "Name of the first Virtual Hub within the Virtual WAN"
       }
@@ -103,7 +103,7 @@
     {
       "type": "Microsoft.Network/virtualHubs/hubRouteTables",
       "apiVersion": "2022-07-01",
-      "name": "[format('{0}/defaultRouteTable', parameters('vHub1_Name'))]",
+      "name": "[format('{0}/{1}', parameters('vHub1_Name'), 'defaultRouteTable')]",
       "properties": {
         "routes": [],
         "labels": [
@@ -117,7 +117,7 @@
     {
       "type": "Microsoft.Network/virtualHubs/hubRouteTables",
       "apiVersion": "2022-07-01",
-      "name": "[format('{0}/noneRouteTable', parameters('vHub1_Name'))]",
+      "name": "[format('{0}/{1}', parameters('vHub1_Name'), 'noneRouteTable')]",
       "properties": {
         "routes": [],
         "labels": [
