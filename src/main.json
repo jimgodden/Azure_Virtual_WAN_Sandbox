@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.6.18.56646",
-      "templateHash": "18361119198063030150"
+      "templateHash": "16720316492896750946"
     }
   },
   "parameters": {
@@ -16,16 +16,25 @@
         "description": "Name of the Virtual WAN resource"
       }
     },
+    "vHubIteration": {
+      "type": "int",
+      "defaultValue": 1,
+      "maxValue": 9,
+      "minValue": 1,
+      "metadata": {
+        "description": "Current vHub Iteration"
+      }
+    },
     "vHub1_Name": {
       "type": "string",
-      "defaultValue": "vhub1",
+      "defaultValue": "[format('vhub{0}', parameters('vHubIteration'))]",
       "metadata": {
         "description": "Name of the first Virtual Hub within the Virtual WAN"
       }
     },
     "vHub1_AddressPrefix": {
       "type": "string",
-      "defaultValue": "10.50.0.0/16",
+      "defaultValue": "[format('10.{0}0.0.0/16', parameters('vHubIteration'))]",
       "metadata": {
         "description": "Address Prefix of the first Virtual Hub"
       }
@@ -68,6 +77,71 @@
       "defaultValue": "[resourceGroup().location]",
       "metadata": {
         "description": "Azure Datacenter location that all of the resouces will be deployed to."
+      }
+    },
+    "vnetIteration": {
+      "type": "int",
+      "defaultValue": 1,
+      "maxValue": 9,
+      "minValue": 1,
+      "metadata": {
+        "description": "Current Virtual Network Iteration"
+      }
+    },
+    "vnetName": {
+      "type": "string",
+      "defaultValue": "[format('vnet{0}', parameters('vnetIteration'))]",
+      "metadata": {
+        "description": "Name of the Virtual Network"
+      }
+    },
+    "vnetAddressPrefix": {
+      "type": "string",
+      "defaultValue": "[format('10.5{0}.0.0/16', parameters('vnetIteration'))]",
+      "metadata": {
+        "description": "Address Prefix of the Virtual Network"
+      }
+    },
+    "vhubAddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.10.0.0/16",
+      "metadata": {
+        "description": "Address Prefix of the vHub Virtual Network"
+      }
+    },
+    "subnetName": {
+      "type": "string",
+      "defaultValue": "[format('subnet{0}', parameters('vnetIteration'))]",
+      "metadata": {
+        "description": "Name of the Virtual Network"
+      }
+    },
+    "subnetAddressPrefix": {
+      "type": "string",
+      "defaultValue": "[format('10.5{0}.0.0/24', parameters('vnetIteration'))]",
+      "metadata": {
+        "description": "Address Prefix of the Subnet"
+      }
+    },
+    "defaultNSGName": {
+      "type": "string",
+      "defaultValue": "Default_NSG",
+      "metadata": {
+        "description": "Name of the Network Security Group"
+      }
+    },
+    "defaultNSGRuleName": {
+      "type": "string",
+      "defaultValue": "[format('rule{0}', parameters('vnetIteration'))]",
+      "metadata": {
+        "description": "Name of the Network Security Group Rule"
+      }
+    },
+    "defaultNSGRulePriority": {
+      "type": "string",
+      "defaultValue": "[format('10{0}', parameters('vnetIteration'))]",
+      "metadata": {
+        "description": "Name of the Network Security Group Rule"
       }
     }
   },
@@ -126,6 +200,45 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualHubs/hubVirtualNetworkConnections",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}/{1}', parameters('vHub1_Name'), 'test1')]",
+      "properties": {
+        "routingConfiguration": {
+          "associatedRouteTable": {
+            "id": "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub1_Name'), 'defaultRouteTable')]"
+          },
+          "propagatedRouteTables": {
+            "labels": [
+              "default"
+            ],
+            "ids": [
+              {
+                "id": "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub1_Name'), 'defaultRouteTable')]"
+              }
+            ]
+          },
+          "vnetRoutes": {
+            "staticRoutes": [],
+            "staticRoutesConfig": {
+              "vnetLocalRouteOverrideCriteria": "Contains"
+            }
+          }
+        },
+        "remoteVirtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+        },
+        "allowHubToRemoteVnetTransit": true,
+        "allowRemoteVnetToUseHubVnetGateways": true,
+        "enableInternetSecurity": true
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]",
+        "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub1_Name'), 'defaultRouteTable')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
       ]
     },
     {
@@ -189,6 +302,97 @@
       "dependsOn": [
         "[resourceId('Microsoft.Network/firewallPolicies', parameters('AzFWPolicy_Name'))]",
         "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('vnetName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('vnetAddressPrefix')]"
+          ]
+        },
+        "enableDdosProtection": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}/{1}', parameters('vnetName'), format('RemoteVnetToHubPeering_{0}', parameters('vnetIteration')))]",
+      "properties": {
+        "remoteVirtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]"
+        },
+        "allowVirtualNetworkAccess": true,
+        "allowForwardedTraffic": false,
+        "allowGatewayTransit": false,
+        "useRemoteGateways": true,
+        "doNotVerifyRemoteGateways": true,
+        "remoteAddressSpace": {
+          "addressPrefixes": [
+            "[parameters('vhubAddressPrefix')]"
+          ]
+        },
+        "remoteVirtualNetworkAddressSpace": {
+          "addressPrefixes": [
+            "[parameters('vhubAddressPrefix')]"
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}/{1}', parameters('vnetName'), parameters('subnetName'))]",
+      "properties": {
+        "addressPrefix": "[parameters('subnetAddressPrefix')]",
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSGName'))]"
+        },
+        "delegations": [],
+        "privateEndpointNetworkPolicies": "Disabled",
+        "privateLinkServiceNetworkPolicies": "Enabled"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSGName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('defaultNSGName')]",
+      "location": "[parameters('location')]",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}/{1}', parameters('defaultNSGName'), parameters('defaultNSGRuleName'))]",
+      "properties": {
+        "description": "test",
+        "protocol": "*",
+        "sourcePortRange": "*",
+        "destinationPortRange": "8080",
+        "sourceAddressPrefix": "10.0.0.1/32",
+        "destinationAddressPrefix": "[format('10.5{0}.0.4', parameters('vnetIteration'))]",
+        "access": "Allow",
+        "priority": "[int(parameters('defaultNSGRulePriority'))]",
+        "direction": "Inbound",
+        "sourcePortRanges": [],
+        "destinationPortRanges": [],
+        "sourceAddressPrefixes": [],
+        "destinationAddressPrefixes": []
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSGName'))]"
       ]
     }
   ]
