@@ -1,16 +1,20 @@
+@description('Azure Datacenter location that all of the resouces will be deployed to.')
+param location string = resourceGroup().location
+
+// VWAN Start
 @description('Name of the Virtual WAN resource')
 param VWAN_Name string = 'vwan'
 
 @description('Current vHub Iteration')
 @minValue(1)
 @maxValue(9)
-param vHubIteration int = 1
+param vHub_Iteration int = 1
 
 @description('Name of the first Virtual Hub within the Virtual WAN')
-param vHub1_Name string = 'vhub${vHubIteration}'
+param vHub_Name string = 'vhub${vHub_Iteration}'
 
 @description('Address Prefix of the first Virtual Hub')
-param vHub1_AddressPrefix string = '10.${vHubIteration}0.0.0/16'
+param vHub_AddressPrefix string = '10.${vHub_Iteration}0.0.0/16'
 
 @description('Name of the Azure Firewall within the Virtual Hub')
 param AzFW_Name string = 'AzFW'
@@ -29,39 +33,32 @@ param AzFWPolicy_Name string = 'AzFW_Policy'
 @description('Name of the Azure Virtual Network Gateway')
 param AzureVNG_Name string = 'vng'
 
-@description('Azure Datacenter location that all of the resouces will be deployed to.')
-param location string = resourceGroup().location
-
-
-
+// VNET Start
 @description('Current Virtual Network Iteration')
 @minValue(1)
 @maxValue(9)
-param vnetIteration int = 1
+param vnet_Iteration int = 1
 
 @description('Name of the Virtual Network')
-param vnetName string = 'vnet${vnetIteration}'
+param vnet_Name string = 'vnet${vnet_Iteration}'
 
 @description('Address Prefix of the Virtual Network')
-param vnetAddressPrefix string = '10.5${vnetIteration}.0.0/16'
-
-@description('Address Prefix of the vHub Virtual Network')
-param vhubAddressPrefix string = '10.10.0.0/16'
+param vnet_AddressPrefix string = '10.5${vnet_Iteration}.0.0/16'
 
 @description('Name of the Virtual Network')
-param subnetName string = 'subnet${vnetIteration}'
+param subnet_Name string = 'subnet${vnet_Iteration}'
 
 @description('Address Prefix of the Subnet')
-param subnetAddressPrefix string = '10.5${vnetIteration}.0.0/24'
+param subnet_AddressPrefix string = '10.5${vnet_Iteration}.0.0/24'
 
 @description('Name of the Network Security Group')
-param defaultNSGName string = 'Default_NSG'
+param defaultNSG_Name string = 'Default_NSG'
 
 @description('Name of the Network Security Group Rule')
-param defaultNSGRuleName string = 'rule${vnetIteration}'
+param defaultNSG_RuleName string = 'rule${vnet_Iteration}'
 
 @description('Name of the Network Security Group Rule')
-param defaultNSGRulePriority string = '10${vnetIteration}'
+param defaultNSG_RulePriority string = '10${vnet_Iteration}'
 
 
 resource VWAN 'Microsoft.Network/virtualWans@2022-07-01' = {
@@ -75,10 +72,10 @@ resource VWAN 'Microsoft.Network/virtualWans@2022-07-01' = {
 }
 
 resource vHub 'Microsoft.Network/virtualHubs@2022-07-01' = {
-  name: vHub1_Name
+  name: vHub_Name
   location: location
   properties: {
-    addressPrefix: vHub1_AddressPrefix
+    addressPrefix: vHub_AddressPrefix
     virtualWan: {
       id: VWAN.id
     }
@@ -202,12 +199,12 @@ resource AzFW 'Microsoft.Network/azureFirewalls@2022-07-01' = {
 
 
 resource vnet 'Microsoft.Network/virtualNetworks@2022-09-01' = {
-  name: vnetName
+  name: vnet_Name
   location: location
   properties: {
     addressSpace: {
       addressPrefixes: [
-        vnetAddressPrefix
+        vnet_AddressPrefix
       ]
     }
     //virtualNetworkPeerings: []
@@ -217,7 +214,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2022-09-01' = {
 
 resource vhubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2022-09-01' = {
   parent: vnet
-  name: 'RemoteVnetToHubPeering_${vnetIteration}'
+  name: 'RemoteVnetToHubPeering_${vnet_Iteration}'
   properties: {
     remoteVirtualNetwork: {
       id: vHub.id
@@ -229,12 +226,12 @@ resource vhubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2
     doNotVerifyRemoteGateways: true
     remoteAddressSpace: {
       addressPrefixes: [
-        vhubAddressPrefix
+        vHub_AddressPrefix
       ]
     }
     remoteVirtualNetworkAddressSpace: {
       addressPrefixes: [
-        vhubAddressPrefix
+        vHub_AddressPrefix
       ]
     }
   }
@@ -242,9 +239,9 @@ resource vhubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2
 
 resource subnet 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' = {
   parent: vnet
-  name: subnetName
+  name: subnet_Name
   properties: {
-    addressPrefix: subnetAddressPrefix
+    addressPrefix: subnet_AddressPrefix
     networkSecurityGroup: {
       id: nsg.id
     }
@@ -255,7 +252,7 @@ resource subnet 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' = {
 }
 
 resource nsg 'Microsoft.Network/networkSecurityGroups@2022-09-01' = {
-  name: defaultNSGName
+  name: defaultNSG_Name
   location: location
   properties: {
   }
@@ -263,16 +260,16 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2022-09-01' = {
 
 resource nsgRule 'Microsoft.Network/networkSecurityGroups/securityRules@2022-09-01' = {
   parent: nsg
-  name: defaultNSGRuleName
+  name: defaultNSG_RuleName
   properties: {
     description: 'test'
     protocol: '*'
     sourcePortRange: '*'
     destinationPortRange: '8080'
     sourceAddressPrefix: '10.0.0.1/32'
-    destinationAddressPrefix: '10.5${vnetIteration}.0.4'
+    destinationAddressPrefix: '10.5${vnet_Iteration}.0.4'
     access: 'Allow'
-    priority: int(defaultNSGRulePriority)
+    priority: int(defaultNSG_RulePriority)
     direction: 'Inbound'
     sourcePortRanges: []
     destinationPortRanges: []
