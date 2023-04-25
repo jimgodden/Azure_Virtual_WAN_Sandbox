@@ -1,2 +1,4 @@
 deployment.ps1
 deploymentEnvironment.dat
+decompile.ps1
+src/main.parameters.json

@@ -5,10 +5,17 @@
     "_generator": {
       "name": "bicep",
       "version": "0.6.18.56646",
-      "templateHash": "16720316492896750946"
+      "templateHash": "15706545018043956654"
     }
   },
   "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure Datacenter location that all of the resouces will be deployed to."
+      }
+    },
     "VWAN_Name": {
       "type": "string",
       "defaultValue": "vwan",
@@ -16,7 +23,7 @@
         "description": "Name of the Virtual WAN resource"
       }
     },
-    "vHubIteration": {
+    "vHub_Iteration": {
       "type": "int",
       "defaultValue": 1,
       "maxValue": 9,
@@ -25,16 +32,16 @@
         "description": "Current vHub Iteration"
       }
     },
-    "vHub1_Name": {
+    "vHub_Name": {
       "type": "string",
-      "defaultValue": "[format('vhub{0}', parameters('vHubIteration'))]",
+      "defaultValue": "[format('vhub{0}', parameters('vHub_Iteration'))]",
       "metadata": {
         "description": "Name of the first Virtual Hub within the Virtual WAN"
       }
     },
-    "vHub1_AddressPrefix": {
+    "vHub_AddressPrefix": {
       "type": "string",
-      "defaultValue": "[format('10.{0}0.0.0/16', parameters('vHubIteration'))]",
+      "defaultValue": "[format('10.{0}0.0.0/16', parameters('vHub_Iteration'))]",
       "metadata": {
         "description": "Address Prefix of the first Virtual Hub"
       }
@@ -72,14 +79,7 @@
         "description": "Name of the Azure Virtual Network Gateway"
       }
     },
-    "location": {
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]",
-      "metadata": {
-        "description": "Azure Datacenter location that all of the resouces will be deployed to."
-      }
-    },
-    "vnetIteration": {
+    "vnet_Iteration": {
       "type": "int",
       "defaultValue": 1,
       "maxValue": 9,
@@ -88,60 +88,79 @@
         "description": "Current Virtual Network Iteration"
       }
     },
-    "vnetName": {
+    "vnet_Name": {
       "type": "string",
-      "defaultValue": "[format('vnet{0}', parameters('vnetIteration'))]",
+      "defaultValue": "[format('vnet{0}', parameters('vnet_Iteration'))]",
       "metadata": {
         "description": "Name of the Virtual Network"
       }
     },
-    "vnetAddressPrefix": {
+    "vnet_AddressPrefix": {
       "type": "string",
-      "defaultValue": "[format('10.5{0}.0.0/16', parameters('vnetIteration'))]",
+      "defaultValue": "[format('10.5{0}.0.0/16', parameters('vnet_Iteration'))]",
       "metadata": {
         "description": "Address Prefix of the Virtual Network"
       }
     },
-    "vhubAddressPrefix": {
+    "subnet_Name": {
       "type": "string",
-      "defaultValue": "10.10.0.0/16",
-      "metadata": {
-        "description": "Address Prefix of the vHub Virtual Network"
-      }
-    },
-    "subnetName": {
-      "type": "string",
-      "defaultValue": "[format('subnet{0}', parameters('vnetIteration'))]",
+      "defaultValue": "[format('subnet{0}', parameters('vnet_Iteration'))]",
       "metadata": {
         "description": "Name of the Virtual Network"
       }
     },
-    "subnetAddressPrefix": {
+    "subnet_AddressPrefix": {
       "type": "string",
-      "defaultValue": "[format('10.5{0}.0.0/24', parameters('vnetIteration'))]",
+      "defaultValue": "[format('10.5{0}.0.0/24', parameters('vnet_Iteration'))]",
       "metadata": {
         "description": "Address Prefix of the Subnet"
       }
     },
-    "defaultNSGName": {
+    "defaultNSG_Name": {
       "type": "string",
       "defaultValue": "Default_NSG",
       "metadata": {
         "description": "Name of the Network Security Group"
       }
     },
-    "defaultNSGRuleName": {
+    "defaultNSG_RuleName": {
       "type": "string",
-      "defaultValue": "[format('rule{0}', parameters('vnetIteration'))]",
+      "defaultValue": "[format('rule{0}', parameters('vnet_Iteration'))]",
       "metadata": {
         "description": "Name of the Network Security Group Rule"
       }
     },
-    "defaultNSGRulePriority": {
+    "defaultNSG_RulePriority": {
       "type": "string",
-      "defaultValue": "[format('10{0}', parameters('vnetIteration'))]",
+      "defaultValue": "[format('10{0}', parameters('vnet_Iteration'))]",
       "metadata": {
         "description": "Name of the Network Security Group Rule"
+      }
+    },
+    "vm_Name": {
+      "type": "string",
+      "defaultValue": "testvm1",
+      "metadata": {
+        "description": "Name of the Virtual Machine"
+      }
+    },
+    "vm_AdminUserName": {
+      "type": "string",
+      "metadata": {
+        "description": "Admin Username for the Virtual Machine"
+      }
+    },
+    "vm_AdminPassword": {
+      "type": "secureString",
+      "metadata": {
+        "description": "Password for the Virtual Machine Admin User"
+      }
+    },
+    "nic_Name": {
+      "type": "string",
+      "defaultValue": "[format('{0}_nic1', parameters('vm_Name'))]",
+      "metadata": {
+        "description": "Name of the Virtual Machines Network Interface"
       }
     }
   },
@@ -160,10 +179,10 @@
     {
       "type": "Microsoft.Network/virtualHubs",
       "apiVersion": "2022-07-01",
-      "name": "[parameters('vHub1_Name')]",
+      "name": "[parameters('vHub_Name')]",
       "location": "[parameters('location')]",
       "properties": {
-        "addressPrefix": "[parameters('vHub1_AddressPrefix')]",
+        "addressPrefix": "[parameters('vHub_AddressPrefix')]",
         "virtualWan": {
           "id": "[resourceId('Microsoft.Network/virtualWans', parameters('VWAN_Name'))]"
         },
@@ -175,41 +194,13 @@
       ]
     },
     {
-      "type": "Microsoft.Network/virtualHubs/hubRouteTables",
-      "apiVersion": "2022-07-01",
-      "name": "[format('{0}/{1}', parameters('vHub1_Name'), 'defaultRouteTable')]",
-      "properties": {
-        "routes": [],
-        "labels": [
-          "default"
-        ]
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]"
-      ]
-    },
-    {
-      "type": "Microsoft.Network/virtualHubs/hubRouteTables",
-      "apiVersion": "2022-07-01",
-      "name": "[format('{0}/{1}', parameters('vHub1_Name'), 'noneRouteTable')]",
-      "properties": {
-        "routes": [],
-        "labels": [
-          "none"
-        ]
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]"
-      ]
-    },
-    {
       "type": "Microsoft.Network/virtualHubs/hubVirtualNetworkConnections",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}/{1}', parameters('vHub1_Name'), 'test1')]",
+      "name": "[format('{0}/{1}', parameters('vHub_Name'), 'testhubconn1')]",
       "properties": {
         "routingConfiguration": {
           "associatedRouteTable": {
-            "id": "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub1_Name'), 'defaultRouteTable')]"
+            "id": "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub_Name'), 'defaultRouteTable')]"
           },
           "propagatedRouteTables": {
             "labels": [
@@ -217,7 +208,7 @@
             ],
             "ids": [
               {
-                "id": "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub1_Name'), 'defaultRouteTable')]"
+                "id": "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub_Name'), 'defaultRouteTable')]"
               }
             ]
           },
@@ -229,16 +220,45 @@
           }
         },
         "remoteVirtualNetwork": {
-          "id": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnet_Name'))]"
         },
         "allowHubToRemoteVnetTransit": true,
         "allowRemoteVnetToUseHubVnetGateways": true,
         "enableInternetSecurity": true
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]",
-        "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub1_Name'), 'defaultRouteTable')]",
-        "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+        "[resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name'))]",
+        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub_Name'))]",
+        "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub_Name'), 'defaultRouteTable')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnet_Name'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualHubs/hubRouteTables",
+      "apiVersion": "2022-07-01",
+      "name": "[format('{0}/{1}', parameters('vHub_Name'), 'defaultRouteTable')]",
+      "properties": {
+        "routes": [],
+        "labels": [
+          "default"
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub_Name'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualHubs/hubRouteTables",
+      "apiVersion": "2022-07-01",
+      "name": "[format('{0}/{1}', parameters('vHub_Name'), 'noneRouteTable')]",
+      "properties": {
+        "routes": [],
+        "labels": [
+          "none"
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub_Name'))]"
       ]
     },
     {
@@ -249,7 +269,7 @@
       "properties": {
         "connections": [],
         "virtualHub": {
-          "id": "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]"
+          "id": "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub_Name'))]"
         },
         "vpnGatewayScaleUnit": 1,
         "natRules": [],
@@ -257,7 +277,7 @@
         "isRoutingPreferenceInternet": false
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]"
+        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub_Name'))]"
       ]
     },
     {
@@ -288,7 +308,7 @@
         },
         "additionalProperties": {},
         "virtualHub": {
-          "id": "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]"
+          "id": "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub_Name'))]"
         },
         "hubIPAddresses": {
           "publicIPs": {
@@ -301,90 +321,61 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Network/firewallPolicies', parameters('AzFWPolicy_Name'))]",
-        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]"
+        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub_Name'))]"
       ]
     },
     {
       "type": "Microsoft.Network/virtualNetworks",
       "apiVersion": "2022-09-01",
-      "name": "[parameters('vnetName')]",
+      "name": "[parameters('vnet_Name')]",
       "location": "[parameters('location')]",
       "properties": {
         "addressSpace": {
           "addressPrefixes": [
-            "[parameters('vnetAddressPrefix')]"
+            "[parameters('vnet_AddressPrefix')]"
           ]
         },
         "enableDdosProtection": false
       }
     },
     {
-      "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
-      "apiVersion": "2022-09-01",
-      "name": "[format('{0}/{1}', parameters('vnetName'), format('RemoteVnetToHubPeering_{0}', parameters('vnetIteration')))]",
-      "properties": {
-        "remoteVirtualNetwork": {
-          "id": "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]"
-        },
-        "allowVirtualNetworkAccess": true,
-        "allowForwardedTraffic": false,
-        "allowGatewayTransit": false,
-        "useRemoteGateways": true,
-        "doNotVerifyRemoteGateways": true,
-        "remoteAddressSpace": {
-          "addressPrefixes": [
-            "[parameters('vhubAddressPrefix')]"
-          ]
-        },
-        "remoteVirtualNetworkAddressSpace": {
-          "addressPrefixes": [
-            "[parameters('vhubAddressPrefix')]"
-          ]
-        }
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub1_Name'))]",
-        "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
-      ]
-    },
-    {
       "type": "Microsoft.Network/virtualNetworks/subnets",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}/{1}', parameters('vnetName'), parameters('subnetName'))]",
+      "name": "[format('{0}/{1}', parameters('vnet_Name'), parameters('subnet_Name'))]",
       "properties": {
-        "addressPrefix": "[parameters('subnetAddressPrefix')]",
+        "addressPrefix": "[parameters('subnet_AddressPrefix')]",
         "networkSecurityGroup": {
-          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSGName'))]"
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSG_Name'))]"
         },
         "delegations": [],
         "privateEndpointNetworkPolicies": "Disabled",
         "privateLinkServiceNetworkPolicies": "Enabled"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSGName'))]",
-        "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSG_Name'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnet_Name'))]"
       ]
     },
     {
       "type": "Microsoft.Network/networkSecurityGroups",
       "apiVersion": "2022-09-01",
-      "name": "[parameters('defaultNSGName')]",
+      "name": "[parameters('defaultNSG_Name')]",
       "location": "[parameters('location')]",
       "properties": {}
     },
     {
       "type": "Microsoft.Network/networkSecurityGroups/securityRules",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}/{1}', parameters('defaultNSGName'), parameters('defaultNSGRuleName'))]",
+      "name": "[format('{0}/{1}', parameters('defaultNSG_Name'), parameters('defaultNSG_RuleName'))]",
       "properties": {
         "description": "test",
         "protocol": "*",
         "sourcePortRange": "*",
         "destinationPortRange": "8080",
         "sourceAddressPrefix": "10.0.0.1/32",
-        "destinationAddressPrefix": "[format('10.5{0}.0.4', parameters('vnetIteration'))]",
+        "destinationAddressPrefix": "[format('10.5{0}.0.4', parameters('vnet_Iteration'))]",
         "access": "Allow",
-        "priority": "[int(parameters('defaultNSGRulePriority'))]",
+        "priority": "[int(parameters('defaultNSG_RulePriority'))]",
         "direction": "Inbound",
         "sourcePortRanges": [],
         "destinationPortRanges": [],
@@ -392,7 +383,121 @@
         "destinationAddressPrefixes": []
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSGName'))]"
+        "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSG_Name'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('nic_Name')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "type": "Microsoft.Network/networkInterfaces/ipConfigurations",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnet_Name'), parameters('subnet_Name'))]"
+              },
+              "primary": true,
+              "privateIPAddressVersion": "IPv4"
+            }
+          }
+        ],
+        "enableAcceleratedNetworking": false,
+        "enableIPForwarding": false,
+        "disableTcpStateTracking": false,
+        "nicType": "Standard"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnet_Name'), parameters('subnet_Name'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2022-11-01",
+      "name": "[parameters('vm_Name')]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_B2ms"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "2022-datacenter-azure-edition",
+            "version": "latest"
+          },
+          "osDisk": {
+            "osType": "Windows",
+            "name": "[format('{0}_OsDisk_1', parameters('vm_Name'))]",
+            "createOption": "FromImage",
+            "caching": "ReadWrite",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            },
+            "deleteOption": "Delete",
+            "diskSizeGB": 127
+          },
+          "dataDisks": [],
+          "diskControllerType": "SCSI"
+        },
+        "osProfile": {
+          "computerName": "[parameters('vm_Name')]",
+          "adminUsername": "[parameters('vm_AdminUserName')]",
+          "adminPassword": "[parameters('vm_AdminPassword')]",
+          "windowsConfiguration": {
+            "provisionVMAgent": true,
+            "enableAutomaticUpdates": true,
+            "patchSettings": {
+              "patchMode": "AutomaticByOS",
+              "assessmentMode": "ImageDefault",
+              "enableHotpatching": false
+            },
+            "enableVMAgentPlatformUpdates": false
+          },
+          "secrets": [],
+          "allowExtensionOperations": true
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('nic_Name'))]",
+              "properties": {
+                "deleteOption": "Delete"
+              }
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', parameters('nic_Name'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2022-11-01",
+      "name": "[format('{0}/{1}', parameters('vm_Name'), 'AzureNetworkWatcherExtension')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "autoUpgradeMinorVersion": true,
+        "publisher": "Microsoft.Azure.NetworkWatcher",
+        "type": "NetworkWatcherAgentWindows",
+        "typeHandlerVersion": "1.4"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', parameters('vm_Name'))]"
       ]
     }
   ]
