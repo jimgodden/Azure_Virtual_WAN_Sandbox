@@ -1,5 +1,8 @@
-@description('Azure Datacenter location that all of the resouces will be deployed to.')
+@description('Azure Datacenter location that the main resouces will be deployed to.')
 param location string = resourceGroup().location
+
+// @description('Secondary Azure Datacenter location that some of the resouces will be deployed to.')
+// param location_B string
 
 // VWAN Start
 @description('Name of the Virtual WAN resource')
@@ -10,13 +13,14 @@ param VWAN_Name string = 'vwan'
 @maxValue(9)
 param vHub_Iteration int = 1
 
+// vHub A
 @description('Name of the first Virtual Hub within the Virtual WAN')
-param vHub_Name string = 'vhub${vHub_Iteration}'
+param vHub_Name string = 'vhub_A'
 
 @description('Address Prefix of the first Virtual Hub')
 param vHub_AddressPrefix string = '10.${vHub_Iteration}0.0.0/16'
 
-@description('Name of the Azure Firewall within the Virtual Hub')
+@description('Name of the Azure Firewall within the vHub A')
 param AzFW_Name string = 'AzFW'
 
 @description('Sku name of the Azure Firewall.  Allowed values are Basic, Standard, and Premium')
@@ -30,7 +34,7 @@ param AzFW_SKU string = 'Basic'
 @description('Name of the Azure Firewall Policy')
 param AzFWPolicy_Name string = 'AzFW_Policy'
 
-@description('Name of the Azure Virtual Network Gateway')
+@description('Name of the Azure Virtual Network Gateway in vHub A')
 param AzureVNG_Name string = 'vng'
 
 // VNET Start
@@ -39,17 +43,19 @@ param AzureVNG_Name string = 'vng'
 @maxValue(9)
 param vnet_Iteration int = 1
 
+
+
 @description('Name of the Virtual Network')
 param vnet_Name string = 'vnet${vnet_Iteration}'
 
 @description('Address Prefix of the Virtual Network')
-param vnet_AddressPrefix string = '10.5${vnet_Iteration}.0.0/16'
+param vnet_AddressPrefix string = '10.${vHub_Iteration}${vnet_Iteration}.0.0/16'
 
 @description('Name of the Virtual Network')
 param subnet_Name string = 'subnet${vnet_Iteration}'
 
 @description('Address Prefix of the Subnet')
-param subnet_AddressPrefix string = '10.5${vnet_Iteration}.0.0/24'
+param subnet_AddressPrefix string = '10.${vHub_Iteration}${vnet_Iteration}.0.0/24'
 
 @description('Name of the Network Security Group')
 param defaultNSG_Name string = 'Default_NSG'
@@ -196,7 +202,6 @@ resource AzFW 'Microsoft.Network/azureFirewalls@2022-07-01' = {
     }
   }
 }
-
 
 
 resource vnet 'Microsoft.Network/virtualNetworks@2022-09-01' = {

@@ -1,4 +1,7 @@
 deployment.ps1
+deployment_main.ps1
+deployment_branch.ps1
+deployment_combined.ps1
 deploymentEnvironment.dat
 decompile.ps1
 src/main.parameters.json
