@@ -3,7 +3,7 @@
 $mainBicepFile = ".\src\main.bicep"
 $mainJSONFile = ".\src\main.json"
 $mainParameterFile = ".\src\main.parameters.json"
-$deploymentParametersFile = ".\src\main.parameters.json"
+$deploymentParametersFile = ".\DeploymentParameters.json"
 
 # Sets the Environment for either Prod or Dev depending on what is in the DeploymentParameters.json file
 $deploymentParameters = Get-Content -raw $deploymentParametersFile | ConvertFrom-Json

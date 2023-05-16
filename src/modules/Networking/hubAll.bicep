@@ -30,6 +30,8 @@ param AzFW_SKU string = 'Basic'
 @description('Name of the Azure Firewall Policy')
 param AzFWPolicy_Name string = 'AzFW_Policy${vHub_Iteration}'
 
+param usingVPN bool = true
+
 @description('Name of the Azure Virtual Network Gateway in vHub A')
 param AzureVNG_Name string = 'vng${vHub_Iteration}'
 
@@ -78,9 +80,9 @@ resource vHub 'Microsoft.Network/virtualHubs@2022-07-01' = {
 resource vHubVNetConn 'Microsoft.Network/virtualHubs/hubVirtualNetworkConnections@2022-09-01' = {
   parent: vHub
   name: '${vHub_Name}_to_${vnet_Name}'
-  dependsOn: [
-    AzureVNG
-  ]
+  // dependsOn: [
+  //   AzureVNG
+  // ]
   properties: {
     routingConfiguration: {
       associatedRouteTable: {
@@ -135,7 +137,7 @@ resource vHub_RouteTable_None 'Microsoft.Network/virtualHubs/hubRouteTables@2022
   }
 }
 
-resource AzureVNG 'Microsoft.Network/vpnGateways@2022-07-01' = {
+resource AzureVNG 'Microsoft.Network/vpnGateways@2022-07-01' = if (usingVPN) {
   name: AzureVNG_Name
   location: location
   properties: {

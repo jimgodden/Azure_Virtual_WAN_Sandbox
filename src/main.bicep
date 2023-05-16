@@ -33,6 +33,7 @@ module mainHub './modules/Networking/hubAll.bicep' = {
     vm_AdminUserName: vm_AdminUserName
     vm_AdminPassword: vm_AdminPassword
     vHub_Iteration: 1
+    usingVPN: true
   }
 }
 
@@ -44,5 +45,6 @@ module branchHub './modules/Networking/hubAll.bicep' = {
     vm_AdminUserName: vm_AdminUserName
     vm_AdminPassword: vm_AdminPassword
     vHub_Iteration: 2
+    usingVPN: false
   }
 }
