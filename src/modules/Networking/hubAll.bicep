@@ -262,6 +262,9 @@ param vm_AdminPassword string
 @description('Name of the Virtual Machines Network Interface')
 param nic_Name string = '${vm_Name}_nic1'
 
+param vm_ScriptFileUri string = 'https://raw.githubusercontent.com/jimgodden/Azure-Virtual-WAN-Sandbox/main/scripts/InitScript.ps1'
+
+
 resource nic 'Microsoft.Network/networkInterfaces@2022-09-01' = {
   name: nic_Name
   location: location
@@ -366,5 +369,26 @@ resource vm_NetworkWatcherExtension 'Microsoft.Compute/virtualMachines/extension
   }
 }
 
-
+resource vm_CustomScriptExtension 'Microsoft.Compute/virtualMachines/extensions@2021-11-01' = {
+  parent: vm
+  name: 'installcustomscript'
+  location: location
+  tags: {
+    displayName: 'install software for Windows VM'
+  }
+  properties: {
+    publisher: 'Microsoft.Compute'
+    type: 'CustomScriptExtension'
+    typeHandlerVersion: '1.9'
+    autoUpgradeMinorVersion: true
+    settings: {
+      fileUris: [
+        vm_ScriptFileUri
+      ]
+    }
+    protectedSettings: {
+      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File InitScript.ps1'
+    }
+  }
+}
 
