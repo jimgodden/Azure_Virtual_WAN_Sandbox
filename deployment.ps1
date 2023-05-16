@@ -1,19 +1,21 @@
-# This file will be used for testing purposes until a proper CI/CD pipeline is in place.  Delete ASAP
+# This file will be used for testing purposes until a proper CI/CD pipeline is in place.
 
-$mainBicepFilePath = ".\src\main.bicep"
-$mainJSONFilePath = ".\src\main.json"
+$mainBicepFile = ".\src\main.bicep"
+$mainJSONFile = ".\src\main.json"
+$mainParameterFile = ".\src\main.parameters.json"
+$deploymentParametersFile = ".\src\main.parameters.json"
 
-# Sets the Environment for either Prod or Dev
-$environment = Get-Content deploymentEnvironment.dat
+# Sets the Environment for either Prod or Dev depending on what is in the DeploymentParameters.json file
+$deploymentParameters = Get-Content -raw $deploymentParametersFile | ConvertFrom-Json
+$environment = $deploymentParameters.Environment
 
 $start = get-date -UFormat "%s"
 
 $currentTime = Get-Date -Format "HH:mm K"
 Write-Host "Starting Bicep Deployment.  Process began at: ${currentTime}"
 
-Write-Host "`nStarted building main.json from main.bicep.."
-bicep build $mainBicepFilePath --outfile $mainJSONFilePath
-Write-Host "`nFinished building main.json from main.bicep"
+Write-Host "`nBuilding main.json from main.bicep.."
+bicep build $mainBicepFile --outfile $mainJSONFile
 
 # Specifies the account and subscription where the deployment will take place.
 if (!$subID) {
@@ -22,7 +24,7 @@ if (!$subID) {
 Set-AzContext -Subscription $subID
 
 
-$rgName = "Bicep_VWAN_${environment}_2"
+$rgName = "Bicep_VWAN_${environment}"
 $location_Main = "eastus2"
 $location_Branch1 = "westus2"
 
@@ -32,7 +34,7 @@ New-AzResourceGroup -Name $rgName -Location $location_Main
 
 Write-Host "`nStarting Bicep Deployment.."
 New-AzResourceGroupDeployment -ResourceGroupName $rgName `
--TemplateParameterFile ".\src\main.parameters.json" -TemplateFile ".\src\main.bicep" `
+-TemplateParameterFile $mainParameterFile -TemplateFile $mainBicepFile `
 -mainLocation $location_Main -branchLocation $location_Branch1
 
 $vms = Get-AzVM -ResourceGroupName $rgName

@@ -366,3 +366,5 @@ resource vm_NetworkWatcherExtension 'Microsoft.Compute/virtualMachines/extension
   }
 }
 
+
+
