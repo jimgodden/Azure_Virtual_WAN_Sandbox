@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.6.18.56646",
-      "templateHash": "2739193633851716187"
+      "templateHash": "10092788815958002074"
     }
   },
   "parameters": {
@@ -14,6 +14,13 @@
       "defaultValue": "[resourceGroup().location]",
       "metadata": {
         "description": "Azure Datacenter location that the main resouces will be deployed to."
+      }
+    },
+    "multiRegion": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Deploys a vHub in another location for multi region connectivity"
       }
     },
     "branchLocation": {
@@ -79,6 +86,12 @@
           },
           "vHub_Iteration": {
             "value": 1
+          },
+          "usingVPN": {
+            "value": true
+          },
+          "usingAzFW": {
+            "value": true
           }
         },
         "template": {
@@ -88,7 +101,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.6.18.56646",
-              "templateHash": "12717461483805597454"
+              "templateHash": "5076755728928261664"
             }
           },
           "parameters": {
@@ -128,6 +141,13 @@
                 "description": "Address Prefix of the first Virtual Hub"
               }
             },
+            "usingAzFW": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploys a Az FW if true"
+              }
+            },
             "AzFW_Name": {
               "type": "string",
               "defaultValue": "[format('AzFW{0}', parameters('vHub_Iteration'))]",
@@ -152,6 +172,13 @@
               "defaultValue": "[format('AzFW_Policy{0}', parameters('vHub_Iteration'))]",
               "metadata": {
                 "description": "Name of the Azure Firewall Policy"
+              }
+            },
+            "usingVPN": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploys a S2S VPN if true"
               }
             },
             "AzureVNG_Name": {
@@ -299,7 +326,6 @@
                 "enableInternetSecurity": true
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name'))]",
                 "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub_Name'))]",
                 "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub_Name'), 'defaultRouteTable')]",
                 "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnet_Name'))]"
@@ -334,6 +360,7 @@
               ]
             },
             {
+              "condition": "[parameters('usingVPN')]",
               "type": "Microsoft.Network/vpnGateways",
               "apiVersion": "2022-07-01",
               "name": "[parameters('AzureVNG_Name')]",
@@ -353,6 +380,7 @@
               ]
             },
             {
+              "condition": "[parameters('usingAzFW')]",
               "type": "Microsoft.Network/firewallPolicies",
               "apiVersion": "2022-07-01",
               "name": "[parameters('AzFWPolicy_Name')]",
@@ -364,6 +392,7 @@
               }
             },
             {
+              "condition": "[parameters('usingAzFW')]",
               "type": "Microsoft.Network/azureFirewalls",
               "apiVersion": "2022-07-01",
               "name": "[parameters('AzFW_Name')]",
@@ -606,6 +635,7 @@
       ]
     },
     {
+      "condition": "[parameters('multiRegion')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2020-10-01",
       "name": "branchHub",
@@ -629,6 +659,12 @@
           },
           "vHub_Iteration": {
             "value": 2
+          },
+          "usingVPN": {
+            "value": false
+          },
+          "usingAzFW": {
+            "value": false
           }
         },
         "template": {
@@ -638,7 +674,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.6.18.56646",
-              "templateHash": "12717461483805597454"
+              "templateHash": "5076755728928261664"
             }
           },
           "parameters": {
@@ -678,6 +714,13 @@
                 "description": "Address Prefix of the first Virtual Hub"
               }
             },
+            "usingAzFW": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploys a Az FW if true"
+              }
+            },
             "AzFW_Name": {
               "type": "string",
               "defaultValue": "[format('AzFW{0}', parameters('vHub_Iteration'))]",
@@ -702,6 +745,13 @@
               "defaultValue": "[format('AzFW_Policy{0}', parameters('vHub_Iteration'))]",
               "metadata": {
                 "description": "Name of the Azure Firewall Policy"
+              }
+            },
+            "usingVPN": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Deploys a S2S VPN if true"
               }
             },
             "AzureVNG_Name": {
@@ -849,7 +899,6 @@
                 "enableInternetSecurity": true
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name'))]",
                 "[resourceId('Microsoft.Network/virtualHubs', parameters('vHub_Name'))]",
                 "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub_Name'), 'defaultRouteTable')]",
                 "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnet_Name'))]"
@@ -884,6 +933,7 @@
               ]
             },
             {
+              "condition": "[parameters('usingVPN')]",
               "type": "Microsoft.Network/vpnGateways",
               "apiVersion": "2022-07-01",
               "name": "[parameters('AzureVNG_Name')]",
@@ -903,6 +953,7 @@
               ]
             },
             {
+              "condition": "[parameters('usingAzFW')]",
               "type": "Microsoft.Network/firewallPolicies",
               "apiVersion": "2022-07-01",
               "name": "[parameters('AzFWPolicy_Name')]",
@@ -914,6 +965,7 @@
               }
             },
             {
+              "condition": "[parameters('usingAzFW')]",
               "type": "Microsoft.Network/azureFirewalls",
               "apiVersion": "2022-07-01",
               "name": "[parameters('AzFW_Name')]",
