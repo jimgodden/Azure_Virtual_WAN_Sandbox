@@ -16,6 +16,9 @@ param vHub_Name string = 'vhub${vHub_Iteration}'
 @description('Address Prefix of the first Virtual Hub')
 param vHub_AddressPrefix string = '10.${vHub_Iteration}0.0.0/16'
 
+@description('Deploys a Az FW if true')
+param usingAzFW bool = true
+
 @description('Name of the Azure Firewall within the vHub A')
 param AzFW_Name string = 'AzFW${vHub_Iteration}'
 
@@ -30,6 +33,7 @@ param AzFW_SKU string = 'Basic'
 @description('Name of the Azure Firewall Policy')
 param AzFWPolicy_Name string = 'AzFW_Policy${vHub_Iteration}'
 
+@description('Deploys a S2S VPN if true')
 param usingVPN bool = true
 
 @description('Name of the Azure Virtual Network Gateway in vHub A')
@@ -152,7 +156,7 @@ resource AzureVNG 'Microsoft.Network/vpnGateways@2022-07-01' = if (usingVPN) {
   }
 }
 
-resource AzFW_Policy 'Microsoft.Network/firewallPolicies@2022-07-01' = {
+resource AzFW_Policy 'Microsoft.Network/firewallPolicies@2022-07-01' = if (usingAzFW) {
   name: AzFWPolicy_Name
   location: location
   properties: {
@@ -162,7 +166,7 @@ resource AzFW_Policy 'Microsoft.Network/firewallPolicies@2022-07-01' = {
   }
 }
 
-resource AzFW 'Microsoft.Network/azureFirewalls@2022-07-01' = {
+resource AzFW 'Microsoft.Network/azureFirewalls@2022-07-01' = if (usingAzFW) {
   name: AzFW_Name
   location: location
   zones: [

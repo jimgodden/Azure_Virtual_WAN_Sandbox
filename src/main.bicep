@@ -1,6 +1,9 @@
 @description('Azure Datacenter location that the main resouces will be deployed to.')
 param mainLocation string = resourceGroup().location
 
+@description('Deploys a vHub in another location for multi region connectivity')
+param multiRegion bool = true
+
 @description('Azure Datacenter location that the branch resouces will be deployed to.')
 param branchLocation string = 'westus2'
 
@@ -34,10 +37,11 @@ module mainHub './modules/Networking/hubAll.bicep' = {
     vm_AdminPassword: vm_AdminPassword
     vHub_Iteration: 1
     usingVPN: true
+    usingAzFW: true
   }
 }
 
-module branchHub './modules/Networking/hubAll.bicep' = {
+module branchHub './modules/Networking/hubAll.bicep' = if (multiRegion) {
   name: 'branchHub'
   params: {
     location: branchLocation
@@ -46,5 +50,6 @@ module branchHub './modules/Networking/hubAll.bicep' = {
     vm_AdminPassword: vm_AdminPassword
     vHub_Iteration: 2
     usingVPN: false
+    usingAzFW: false
   }
 }
