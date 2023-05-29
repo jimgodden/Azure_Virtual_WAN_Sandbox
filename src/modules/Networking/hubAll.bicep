@@ -39,6 +39,10 @@ param usingVPN bool = true
 @description('Name of the Azure Virtual Network Gateway in vHub A')
 param AzureVNG_Name string = 'vng${vHub_Iteration}'
 
+@description('VPN Shared Key used for authenticating VPN connections')
+@secure()
+param vpn_SharedKey string
+
 // VNET Start
 @description('Current Virtual Network Iteration')
 @minValue(1)
@@ -153,6 +157,102 @@ resource AzureVNG 'Microsoft.Network/vpnGateways@2022-07-01' = if (usingVPN) {
     natRules: []
     enableBgpRouteTranslationForNat: false
     isRoutingPreferenceInternet: false
+  }
+}
+
+resource vpn_Site 'Microsoft.Network/vpnSites@2022-11-01' = if (usingVPN) {
+  name: 'toMain'
+  location: location
+  properties: {
+    deviceProperties: {
+      deviceVendor: 'Azure'
+      linkSpeedInMbps: 0
+    }
+    virtualWan: {
+      id: vwanID
+    }
+    isSecuritySite: false
+    o365Policy: {
+      breakOutCategories: {
+        optimize: false
+        allow: false
+        default: false
+      }
+    }
+    vpnSiteLinks: [
+      {
+        name: 'Main'
+        properties: {
+          ipAddress: '20.12.2.155'
+          bgpProperties: {
+            asn: 65516
+            bgpPeeringAddress: '10.100.0.126'
+          }
+          linkProperties: {
+            linkProviderName: 'Azure'
+            linkSpeedInMbps: 200
+          }
+        }
+      }
+    ]
+  }
+}
+
+resource vpn_Connection 'Microsoft.Network/vpnGateways/vpnConnections@2022-11-01' = if (usingVPN) {
+  parent: AzureVNG
+  name: 'Connection-to_main_hub'
+  properties: {
+    routingConfiguration: {
+      associatedRouteTable: {
+        id: vHub_RouteTable_Default.id
+      }
+      propagatedRouteTables: {
+        labels: [
+          'default'
+        ]
+        ids: [
+          {
+            id: vHub_RouteTable_Default.id
+          }
+        ]
+      }
+    }
+    enableInternetSecurity: false
+    remoteVpnSite: {
+      id: vpn_Site.id
+    }
+    vpnLinkConnections: [
+      {
+        name: 'Main'
+        properties: {
+          // vpnSiteLink: {
+          //   id: '${vpn_Site.id}/vpnSiteLinks/Main'
+          // }
+          connectionBandwidth: 10
+          ipsecPolicies: [
+            {
+              saLifeTimeSeconds: 3600
+              saDataSizeKilobytes: 0
+              ipsecEncryption: 'AES256'
+              ipsecIntegrity: 'SHA256'
+              ikeEncryption: 'AES256'
+              ikeIntegrity: 'SHA256'
+              dhGroup: 'DHGroup14'
+              pfsGroup: 'None'
+            }
+          ]
+          vpnConnectionProtocolType: 'IKEv2'
+          sharedKey: vpn_SharedKey
+          enableBgp: true
+          enableRateLimiting: false
+          useLocalAzureIpAddress: false
+          usePolicyBasedTrafficSelectors: false
+          routingWeight: 0
+          vpnLinkConnectionMode: 'Default'
+          vpnGatewayCustomBgpAddresses: []
+        }
+      }
+    ]
   }
 }
 

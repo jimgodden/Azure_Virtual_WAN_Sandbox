@@ -18,6 +18,10 @@ param vm_AdminUserName string
 @secure()
 param vm_AdminPassword string
 
+@description('VPN Shared Key used for authenticating VPN connections')
+@secure()
+param vpn_SharedKey string
+
 resource VWAN 'Microsoft.Network/virtualWans@2022-07-01' = {
   name: VWAN_Name
   location: mainLocation
@@ -35,6 +39,7 @@ module mainHub './modules/Networking/hubAll.bicep' = {
     vwanID: VWAN.id
     vm_AdminUserName: vm_AdminUserName
     vm_AdminPassword: vm_AdminPassword
+    vpn_SharedKey: vpn_SharedKey
     vHub_Iteration: 1
     usingVPN: true
     usingAzFW: true
@@ -48,6 +53,7 @@ module branchHub './modules/Networking/hubAll.bicep' = if (multiRegion) {
     vwanID: VWAN.id
     vm_AdminUserName: vm_AdminUserName
     vm_AdminPassword: vm_AdminPassword
+    vpn_SharedKey: vpn_SharedKey
     vHub_Iteration: 2
     usingVPN: false
     usingAzFW: false
