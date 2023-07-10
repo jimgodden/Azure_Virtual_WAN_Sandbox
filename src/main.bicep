@@ -46,8 +46,20 @@ module mainHub './modules/Networking/hubAll.bicep' = {
   }
 }
 
+module MainvHubVNetConn_1 './modules/Networking/hubVirtualNetworkConnections.bicep' = {
+  // The name below errors out because the name has to be known as soon as the file is processed.  Will look into solutions later
+  // name: '${mainHub.outputs.vHubName}_to_${vnet_Name}_Conn'
+  name: 'Main_vHub_to_vnet1_Conn'
+  params: {
+    vHubName: mainHub.outputs.vHubName
+    vHubRouteTableDefaultID: mainHub.outputs.vHubRouteTableDefaultID
+    vnetID: mainHub.outputs.vnetID1
+    vnetName: mainHub.outputs.vnetName1
+  }
+}
+
 module branchHub './modules/Networking/hubAll.bicep' = if (multiRegion) {
-  name: 'branchHub'
+  name: 'branchHub1'
   params: {
     location: branchLocation
     vwanID: VWAN.id
@@ -57,5 +69,17 @@ module branchHub './modules/Networking/hubAll.bicep' = if (multiRegion) {
     vHub_Iteration: 2
     usingVPN: false
     usingAzFW: false
+  }
+}
+
+module BranchvHubVNetConn_1_1 './modules/Networking/hubVirtualNetworkConnections.bicep' = {
+  // The name below errors out because the name has to be known as soon as the file is processed.  Will look into solutions later
+  // name: '${mainHub.outputs.vHubName}_to_${vnet_Name}_Conn'
+  name: 'Branch1_vHub_to_vnet1_Conn'
+  params: {
+    vHubName: mainHub.outputs.vHubName
+    vHubRouteTableDefaultID: mainHub.outputs.vHubRouteTableDefaultID
+    vnetID: mainHub.outputs.vnetID1
+    vnetName: mainHub.outputs.vnetName1
   }
 }

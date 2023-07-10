@@ -3,11 +3,11 @@
 $mainBicepFile = ".\src\main.bicep"
 $mainJSONFile = ".\src\main.json"
 $mainParameterFile = ".\src\main.parameters.json"
-$deploymentParametersFile = ".\DeploymentParameters.json"
+# $deploymentParametersFile = ".\DeploymentParameters.json"
 
 # Sets the Environment for either Prod or Dev depending on what is in the DeploymentParameters.json file
-$deploymentParameters = Get-Content -raw $deploymentParametersFile | ConvertFrom-Json
-$environment = $deploymentParameters.Environment
+# $deploymentParameters = Get-Content -raw $deploymentParametersFile | ConvertFrom-Json
+# $environment = $deploymentParameters.Environment
 
 $start = get-date -UFormat "%s"
 
@@ -24,7 +24,7 @@ if (!$subID) {
 Set-AzContext -Subscription $subID
 
 
-$rgName = "Bicep_VWAN_${environment}"
+$rgName = "Bicep_VWAN_Prod"
 $location_Main = "eastus2"
 $location_Branch1 = "westus2"
 
