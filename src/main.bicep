@@ -36,7 +36,7 @@ resource VWAN 'Microsoft.Network/virtualWans@2022-07-01' = {
   }
 }
 
-module mainHub './modules/Networking/hubAll.bicep' = {
+module mainHub './modules/Networking/hubAndContents.bicep' = {
   name: 'mainHub'
   params: {
     location: mainLocation
@@ -51,8 +51,6 @@ module mainHub './modules/Networking/hubAll.bicep' = {
 }
 
 module MainvHubVNetConn_1 './modules/Networking/hubVirtualNetworkConnections.bicep' = {
-  // The name below errors out because the name has to be known as soon as the file is processed.  Will look into solutions later
-  // name: '${mainHub.outputs.vHubName}_to_${vnet_Name}_Conn'
   name: 'Main_vHub_to_vnet1_Conn'
   params: {
     vHubName: mainHub.outputs.vHubName
@@ -64,7 +62,6 @@ module MainvHubVNetConn_1 './modules/Networking/hubVirtualNetworkConnections.bic
 
 module ConnectionToMainHubVPN 'modules/Networking/destinationVNGConnection.bicep' = {
   name: 'ConnectionToMainHubVPN'
-  // scope: resourceGroup(existingRG)
   params: {
     bgpPeeringAddress_0: mainHub.outputs.vpnBGPIP0
     bgpPeeringAddress_1: mainHub.outputs.vpnBGPIP1
@@ -77,7 +74,7 @@ module ConnectionToMainHubVPN 'modules/Networking/destinationVNGConnection.bicep
   }
 }
 
-module branchHub './modules/Networking/hubAll.bicep' = if (multiRegion) {
+module branchHub './modules/Networking/hubAndContents.bicep' = if (multiRegion) {
   name: 'branchHub1'
   params: {
     location: branchLocation
@@ -92,8 +89,6 @@ module branchHub './modules/Networking/hubAll.bicep' = if (multiRegion) {
 }
 
 module BranchvHubVNetConn_1_1 './modules/Networking/hubVirtualNetworkConnections.bicep' = {
-  // The name below errors out because the name has to be known as soon as the file is processed.  Will look into solutions later
-  // name: '${mainHub.outputs.vHubName}_to_${vnet_Name}_Conn'
   name: 'Branch1_vHub_to_vnet1_Conn'
   params: {
     vHubName: branchHub.outputs.vHubName
