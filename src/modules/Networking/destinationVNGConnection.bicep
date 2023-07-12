@@ -31,9 +31,15 @@ resource connection0 'Microsoft.Network/connections@2022-11-01' = {
     properties: {
       virtualNetworkGateway1: {
         id: existingVNGID
+        properties: {
+          
+        }
       }
       localNetworkGateway2: {
         id: lng0.id
+        properties: {
+          
+        }
       }
       connectionType: 'IPsec'
       connectionProtocol: 'IKEv2'
@@ -65,9 +71,15 @@ resource connection1 'Microsoft.Network/connections@2022-11-01' = {
   properties: {
     virtualNetworkGateway1: {
       id: existingVNGID
+      properties: {
+        
+      }
     }
     localNetworkGateway2: {
       id: lng1.id
+      properties: {
+        
+      }
     }
     connectionType: 'IPsec'
     connectionProtocol: 'IKEv2'
