@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.18.4.5664",
-      "templateHash": "7952064859406725026"
+      "templateHash": "7752436062965324588"
     }
   },
   "parameters": {
@@ -16,18 +16,18 @@
         "description": "Azure Datacenter location that the main resouces will be deployed to."
       }
     },
-    "multiRegion": {
-      "type": "bool",
-      "defaultValue": true,
-      "metadata": {
-        "description": "Deploys a vHub in another location for multi region connectivity"
-      }
-    },
     "branchLocation": {
       "type": "string",
       "defaultValue": "westus2",
       "metadata": {
         "description": "Azure Datacenter location that the branch resouces will be deployed to."
+      }
+    },
+    "multiRegion": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Deploys a vHub in another location for multi region connectivity"
       }
     },
     "VWAN_Name": {
@@ -53,6 +53,12 @@
       "type": "securestring",
       "metadata": {
         "description": "VPN Shared Key used for authenticating VPN connections"
+      }
+    },
+    "existingVNGID": {
+      "type": "string",
+      "metadata": {
+        "description": "Existing Virtual Network Gateway ID"
       }
     }
   },
@@ -110,7 +116,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.18.4.5664",
-              "templateHash": "6625988285768594797"
+              "templateHash": "4808667982102573858"
             }
           },
           "parameters": {
@@ -129,7 +135,6 @@
             },
             "vHub_Iteration": {
               "type": "int",
-              "defaultValue": 1,
               "maxValue": 9,
               "minValue": 1,
               "metadata": {
@@ -203,6 +208,34 @@
                 "description": "VPN Shared Key used for authenticating VPN connections"
               }
             },
+            "destinationVPN_Name": {
+              "type": "string",
+              "defaultValue": "MainVPNSite",
+              "metadata": {
+                "description": "Name of the Destination VPN Site"
+              }
+            },
+            "destinationVPN_PublicAddress": {
+              "type": "string",
+              "defaultValue": "20.12.2.155",
+              "metadata": {
+                "description": "Public IP Address of the Destination VPN Site"
+              }
+            },
+            "destinationVPN_BGPAddress": {
+              "type": "string",
+              "defaultValue": "10.100.0.126",
+              "metadata": {
+                "description": "BGP Address of the Destination VPN Site"
+              }
+            },
+            "destinationVPN_ASN": {
+              "type": "int",
+              "defaultValue": 65516,
+              "metadata": {
+                "description": "Autonomous System Number (ASN) of the Destination VPN Site"
+              }
+            },
             "vnet_Iteration": {
               "type": "int",
               "defaultValue": 1,
@@ -263,7 +296,7 @@
             },
             "vm_Name": {
               "type": "string",
-              "defaultValue": "[format('testvm{0}', parameters('vHub_Iteration'))]",
+              "defaultValue": "[format('NetTestVM{0}', parameters('vHub_Iteration'))]",
               "metadata": {
                 "description": "Name of the Virtual Machine"
               }
@@ -286,10 +319,6 @@
               "metadata": {
                 "description": "Name of the Virtual Machines Network Interface"
               }
-            },
-            "vm_ScriptFileUri": {
-              "type": "string",
-              "defaultValue": "https://raw.githubusercontent.com/jimgodden/Azure-Virtual-WAN-Sandbox/main/scripts/InitScript.ps1"
             }
           },
           "resources": [
@@ -359,7 +388,7 @@
               "condition": "[parameters('usingVPN')]",
               "type": "Microsoft.Network/vpnSites",
               "apiVersion": "2022-11-01",
-              "name": "toMain",
+              "name": "[format('to{0}', parameters('destinationVPN_Name'))]",
               "location": "[parameters('location')]",
               "properties": {
                 "deviceProperties": {
@@ -379,12 +408,12 @@
                 },
                 "vpnSiteLinks": [
                   {
-                    "name": "Main",
+                    "name": "[parameters('destinationVPN_Name')]",
                     "properties": {
-                      "ipAddress": "20.12.2.155",
+                      "ipAddress": "[parameters('destinationVPN_PublicAddress')]",
                       "bgpProperties": {
-                        "asn": 65516,
-                        "bgpPeeringAddress": "10.100.0.126"
+                        "asn": "[parameters('destinationVPN_ASN')]",
+                        "bgpPeeringAddress": "[parameters('destinationVPN_BGPAddress')]"
                       },
                       "linkProperties": {
                         "linkProviderName": "Azure",
@@ -418,12 +447,15 @@
                 },
                 "enableInternetSecurity": false,
                 "remoteVpnSite": {
-                  "id": "[resourceId('Microsoft.Network/vpnSites', 'toMain')]"
+                  "id": "[resourceId('Microsoft.Network/vpnSites', format('to{0}', parameters('destinationVPN_Name')))]"
                 },
                 "vpnLinkConnections": [
                   {
                     "name": "Main",
                     "properties": {
+                      "vpnSiteLink": {
+                        "id": "[reference(resourceId('Microsoft.Network/vpnSites', format('to{0}', parameters('destinationVPN_Name'))), '2022-11-01').vpnSiteLinks[0].id]"
+                      },
                       "connectionBandwidth": 10,
                       "ipsecPolicies": [
                         {
@@ -453,7 +485,7 @@
               "dependsOn": [
                 "[resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name'))]",
                 "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub_Name'), 'defaultRouteTable')]",
-                "[resourceId('Microsoft.Network/vpnSites', 'toMain')]"
+                "[resourceId('Microsoft.Network/vpnSites', format('to{0}', parameters('destinationVPN_Name')))]"
               ]
             },
             {
@@ -474,11 +506,6 @@
               "apiVersion": "2022-07-01",
               "name": "[parameters('AzFW_Name')]",
               "location": "[parameters('location')]",
-              "zones": [
-                "1",
-                "2",
-                "3"
-              ],
               "properties": {
                 "sku": {
                   "name": "AzFW_Hub",
@@ -513,25 +540,24 @@
                     "[parameters('vnet_AddressPrefix')]"
                   ]
                 },
+                "subnets": [
+                  {
+                    "name": "[parameters('subnet_Name')]",
+                    "properties": {
+                      "addressPrefix": "[parameters('subnet_AddressPrefix')]",
+                      "networkSecurityGroup": {
+                        "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSG_Name'))]"
+                      },
+                      "delegations": [],
+                      "privateEndpointNetworkPolicies": "Disabled",
+                      "privateLinkServiceNetworkPolicies": "Enabled"
+                    }
+                  }
+                ],
                 "enableDdosProtection": false
-              }
-            },
-            {
-              "type": "Microsoft.Network/virtualNetworks/subnets",
-              "apiVersion": "2022-09-01",
-              "name": "[format('{0}/{1}', parameters('vnet_Name'), parameters('subnet_Name'))]",
-              "properties": {
-                "addressPrefix": "[parameters('subnet_AddressPrefix')]",
-                "networkSecurityGroup": {
-                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSG_Name'))]"
-                },
-                "delegations": [],
-                "privateEndpointNetworkPolicies": "Disabled",
-                "privateLinkServiceNetworkPolicies": "Enabled"
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSG_Name'))]",
-                "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnet_Name'))]"
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSG_Name'))]"
               ]
             },
             {
@@ -565,143 +591,223 @@
               ]
             },
             {
-              "type": "Microsoft.Network/networkInterfaces",
+              "type": "Microsoft.Resources/deployments",
               "apiVersion": "2022-09-01",
-              "name": "[parameters('nic_Name')]",
-              "location": "[parameters('location')]",
+              "name": "[format('NetTestVM{0}', parameters('vHub_Iteration'))]",
               "properties": {
-                "ipConfigurations": [
-                  {
-                    "name": "ipconfig1",
-                    "type": "Microsoft.Network/networkInterfaces/ipConfigurations",
-                    "properties": {
-                      "privateIPAllocationMethod": "Dynamic",
-                      "subnet": {
-                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnet_Name'), parameters('subnet_Name'))]"
-                      },
-                      "primary": true,
-                      "privateIPAddressVersion": "IPv4"
-                    }
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "location": {
+                    "value": "[parameters('location')]"
+                  },
+                  "nic_Name": {
+                    "value": "[parameters('nic_Name')]"
+                  },
+                  "subnetID": {
+                    "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', parameters('vnet_Name')), '2022-09-01').subnets[0].id]"
+                  },
+                  "vm_AdminPassword": {
+                    "value": "[parameters('vm_AdminPassword')]"
+                  },
+                  "vm_AdminUserName": {
+                    "value": "[parameters('vm_AdminUserName')]"
+                  },
+                  "vm_Name": {
+                    "value": "[parameters('vm_Name')]"
                   }
-                ],
-                "enableAcceleratedNetworking": false,
-                "enableIPForwarding": false,
-                "disableTcpStateTracking": false,
-                "nicType": "Standard"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnet_Name'), parameters('subnet_Name'))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Compute/virtualMachines",
-              "apiVersion": "2022-11-01",
-              "name": "[parameters('vm_Name')]",
-              "location": "[parameters('location')]",
-              "identity": {
-                "type": "SystemAssigned"
-              },
-              "properties": {
-                "hardwareProfile": {
-                  "vmSize": "Standard_B2ms"
                 },
-                "storageProfile": {
-                  "imageReference": {
-                    "publisher": "MicrosoftWindowsServer",
-                    "offer": "WindowsServer",
-                    "sku": "2022-datacenter-azure-edition",
-                    "version": "latest"
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.18.4.5664",
+                      "templateHash": "7305738495822575466"
+                    }
                   },
-                  "osDisk": {
-                    "osType": "Windows",
-                    "name": "[format('{0}_OsDisk_1', parameters('vm_Name'))]",
-                    "createOption": "FromImage",
-                    "caching": "ReadWrite",
-                    "managedDisk": {
-                      "storageAccountType": "Standard_LRS"
+                  "parameters": {
+                    "location": {
+                      "type": "string"
                     },
-                    "deleteOption": "Delete",
-                    "diskSizeGB": 127
-                  },
-                  "dataDisks": [],
-                  "diskControllerType": "SCSI"
-                },
-                "osProfile": {
-                  "computerName": "[parameters('vm_Name')]",
-                  "adminUsername": "[parameters('vm_AdminUserName')]",
-                  "adminPassword": "[parameters('vm_AdminPassword')]",
-                  "windowsConfiguration": {
-                    "provisionVMAgent": true,
-                    "enableAutomaticUpdates": true,
-                    "patchSettings": {
-                      "patchMode": "AutomaticByOS",
-                      "assessmentMode": "ImageDefault",
-                      "enableHotpatching": false
-                    },
-                    "enableVMAgentPlatformUpdates": false
-                  },
-                  "secrets": [],
-                  "allowExtensionOperations": true
-                },
-                "networkProfile": {
-                  "networkInterfaces": [
-                    {
-                      "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('nic_Name'))]",
-                      "properties": {
-                        "deleteOption": "Delete"
+                    "vm_Name": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Name of the Virtual Machine"
                       }
+                    },
+                    "vm_AdminUserName": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Admin Username for the Virtual Machine"
+                      }
+                    },
+                    "vm_AdminPassword": {
+                      "type": "securestring",
+                      "metadata": {
+                        "description": "Password for the Virtual Machine Admin User"
+                      }
+                    },
+                    "nic_Name": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Name of the Virtual Machines Network Interface"
+                      }
+                    },
+                    "subnetID": {
+                      "type": "string"
+                    },
+                    "vm_ScriptFileUri": {
+                      "type": "string",
+                      "defaultValue": "https://raw.githubusercontent.com/jimgodden/Azure-Virtual-WAN-Sandbox/main/scripts/InitScript.ps1"
+                    }
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Network/networkInterfaces",
+                      "apiVersion": "2022-09-01",
+                      "name": "[parameters('nic_Name')]",
+                      "location": "[parameters('location')]",
+                      "properties": {
+                        "ipConfigurations": [
+                          {
+                            "name": "ipconfig1",
+                            "type": "Microsoft.Network/networkInterfaces/ipConfigurations",
+                            "properties": {
+                              "privateIPAllocationMethod": "Dynamic",
+                              "subnet": {
+                                "id": "[parameters('subnetID')]"
+                              },
+                              "primary": true,
+                              "privateIPAddressVersion": "IPv4"
+                            }
+                          }
+                        ],
+                        "enableAcceleratedNetworking": false,
+                        "enableIPForwarding": false,
+                        "disableTcpStateTracking": false,
+                        "nicType": "Standard"
+                      }
+                    },
+                    {
+                      "type": "Microsoft.Compute/virtualMachines",
+                      "apiVersion": "2022-11-01",
+                      "name": "[parameters('vm_Name')]",
+                      "location": "[parameters('location')]",
+                      "identity": {
+                        "type": "SystemAssigned"
+                      },
+                      "properties": {
+                        "hardwareProfile": {
+                          "vmSize": "Standard_B2ms"
+                        },
+                        "storageProfile": {
+                          "imageReference": {
+                            "publisher": "MicrosoftWindowsServer",
+                            "offer": "WindowsServer",
+                            "sku": "2022-datacenter-azure-edition",
+                            "version": "latest"
+                          },
+                          "osDisk": {
+                            "osType": "Windows",
+                            "name": "[format('{0}_OsDisk_1', parameters('vm_Name'))]",
+                            "createOption": "FromImage",
+                            "caching": "ReadWrite",
+                            "managedDisk": {
+                              "storageAccountType": "Standard_LRS"
+                            },
+                            "deleteOption": "Delete",
+                            "diskSizeGB": 127
+                          },
+                          "dataDisks": [],
+                          "diskControllerType": "SCSI"
+                        },
+                        "osProfile": {
+                          "computerName": "[parameters('vm_Name')]",
+                          "adminUsername": "[parameters('vm_AdminUserName')]",
+                          "adminPassword": "[parameters('vm_AdminPassword')]",
+                          "windowsConfiguration": {
+                            "provisionVMAgent": true,
+                            "enableAutomaticUpdates": true,
+                            "patchSettings": {
+                              "patchMode": "AutomaticByOS",
+                              "assessmentMode": "ImageDefault",
+                              "enableHotpatching": false
+                            },
+                            "enableVMAgentPlatformUpdates": false
+                          },
+                          "secrets": [],
+                          "allowExtensionOperations": true
+                        },
+                        "networkProfile": {
+                          "networkInterfaces": [
+                            {
+                              "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('nic_Name'))]",
+                              "properties": {
+                                "deleteOption": "Delete"
+                              }
+                            }
+                          ]
+                        },
+                        "diagnosticsProfile": {
+                          "bootDiagnostics": {
+                            "enabled": true
+                          }
+                        }
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Network/networkInterfaces', parameters('nic_Name'))]"
+                      ]
+                    },
+                    {
+                      "type": "Microsoft.Compute/virtualMachines/extensions",
+                      "apiVersion": "2022-11-01",
+                      "name": "[format('{0}/{1}', parameters('vm_Name'), 'AzureNetworkWatcherExtension')]",
+                      "location": "[parameters('location')]",
+                      "properties": {
+                        "autoUpgradeMinorVersion": true,
+                        "publisher": "Microsoft.Azure.NetworkWatcher",
+                        "type": "NetworkWatcherAgentWindows",
+                        "typeHandlerVersion": "1.4"
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Compute/virtualMachines', parameters('vm_Name'))]"
+                      ]
+                    },
+                    {
+                      "type": "Microsoft.Compute/virtualMachines/extensions",
+                      "apiVersion": "2021-11-01",
+                      "name": "[format('{0}/{1}', parameters('vm_Name'), 'installcustomscript')]",
+                      "location": "[parameters('location')]",
+                      "tags": {
+                        "displayName": "install software for Windows VM"
+                      },
+                      "properties": {
+                        "publisher": "Microsoft.Compute",
+                        "type": "CustomScriptExtension",
+                        "typeHandlerVersion": "1.9",
+                        "autoUpgradeMinorVersion": true,
+                        "settings": {
+                          "fileUris": [
+                            "[parameters('vm_ScriptFileUri')]"
+                          ]
+                        },
+                        "protectedSettings": {
+                          "commandToExecute": "powershell -ExecutionPolicy Unrestricted -File InitScript.ps1"
+                        }
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Compute/virtualMachines', parameters('vm_Name'))]"
+                      ]
                     }
                   ]
-                },
-                "diagnosticsProfile": {
-                  "bootDiagnostics": {
-                    "enabled": true
-                  }
                 }
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Network/networkInterfaces', parameters('nic_Name'))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Compute/virtualMachines/extensions",
-              "apiVersion": "2022-11-01",
-              "name": "[format('{0}/{1}', parameters('vm_Name'), 'AzureNetworkWatcherExtension')]",
-              "location": "[parameters('location')]",
-              "properties": {
-                "autoUpgradeMinorVersion": true,
-                "publisher": "Microsoft.Azure.NetworkWatcher",
-                "type": "NetworkWatcherAgentWindows",
-                "typeHandlerVersion": "1.4"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines', parameters('vm_Name'))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Compute/virtualMachines/extensions",
-              "apiVersion": "2021-11-01",
-              "name": "[format('{0}/{1}', parameters('vm_Name'), 'installcustomscript')]",
-              "location": "[parameters('location')]",
-              "tags": {
-                "displayName": "install software for Windows VM"
-              },
-              "properties": {
-                "publisher": "Microsoft.Compute",
-                "type": "CustomScriptExtension",
-                "typeHandlerVersion": "1.9",
-                "autoUpgradeMinorVersion": true,
-                "settings": {
-                  "fileUris": [
-                    "[parameters('vm_ScriptFileUri')]"
-                  ]
-                },
-                "protectedSettings": {
-                  "commandToExecute": "powershell -ExecutionPolicy Unrestricted -File InitScript.ps1"
-                }
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines', parameters('vm_Name'))]"
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnet_Name'))]"
               ]
             }
           ],
@@ -721,6 +827,22 @@
             "vnetName1": {
               "type": "string",
               "value": "[parameters('vnet_Name')]"
+            },
+            "vpnPubIP0": {
+              "type": "string",
+              "value": "[if(parameters('usingVPN'), reference(resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name')), '2022-07-01').bgpSettings.bgpPeeringAddresses[0].tunnelIpAddresses[0], '')]"
+            },
+            "vpnPubIP1": {
+              "type": "string",
+              "value": "[if(parameters('usingVPN'), reference(resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name')), '2022-07-01').bgpSettings.bgpPeeringAddresses[1].tunnelIpAddresses[0], '')]"
+            },
+            "vpnBGPIP0": {
+              "type": "string",
+              "value": "[if(parameters('usingVPN'), reference(resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name')), '2022-07-01').bgpSettings.bgpPeeringAddresses[0].defaultBgpIpAddresses[0], '')]"
+            },
+            "vpnBGPIP1": {
+              "type": "string",
+              "value": "[if(parameters('usingVPN'), reference(resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name')), '2022-07-01').bgpSettings.bgpPeeringAddresses[1].defaultBgpIpAddresses[0], '')]"
             }
           }
         }
@@ -819,10 +941,219 @@
       ]
     },
     {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "ConnectionToMainHubVPN",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "bgpPeeringAddress_0": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnBGPIP0.value]"
+          },
+          "bgpPeeringAddress_1": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnBGPIP1.value]"
+          },
+          "gatewayIPAddress_0": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnPubIP0.value]"
+          },
+          "gatewayIPAddress_1": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnPubIP1.value]"
+          },
+          "location": {
+            "value": "[parameters('mainLocation')]"
+          },
+          "vhubIteration": {
+            "value": 1
+          },
+          "existingVNGID": {
+            "value": "[parameters('existingVNGID')]"
+          },
+          "vpn_SharedKey": {
+            "value": "[parameters('vpn_SharedKey')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.18.4.5664",
+              "templateHash": "1428669594953114641"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure Datacenter that the resources are deployed to"
+              }
+            },
+            "vhubIteration": {
+              "type": "int",
+              "metadata": {
+                "description": "Identifier for which vHub is being used"
+              }
+            },
+            "gatewayIPAddress_0": {
+              "type": "string",
+              "metadata": {
+                "description": "Public IP Address of the first VPN Gateway Instance"
+              }
+            },
+            "bgpPeeringAddress_0": {
+              "type": "string",
+              "metadata": {
+                "description": "BGP Peering Address of the first VPN Gateway Instance"
+              }
+            },
+            "gatewayIPAddress_1": {
+              "type": "string",
+              "metadata": {
+                "description": "Public IP Address of the second VPN Gateway Instance"
+              }
+            },
+            "bgpPeeringAddress_1": {
+              "type": "string",
+              "metadata": {
+                "description": "BGP Peering Address of the second VPN Gateway Instance"
+              }
+            },
+            "vpn_SharedKey": {
+              "type": "securestring",
+              "metadata": {
+                "description": "VPN Shared Key used for authenticating VPN connections"
+              }
+            },
+            "existingVNGID": {
+              "type": "string",
+              "metadata": {
+                "description": "Existing Virtual Network Gateway ID"
+              }
+            },
+            "rgName": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().name]"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/connections",
+              "apiVersion": "2022-11-01",
+              "name": "[format('{0}_to_vhub_{1}_0', parameters('rgName'), parameters('vhubIteration'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "virtualNetworkGateway1": {
+                  "id": "[parameters('existingVNGID')]"
+                },
+                "localNetworkGateway2": {
+                  "id": "[resourceId('Microsoft.Network/localNetworkGateways', format('{0}_lng_tovhub_{1}_0', parameters('rgName'), parameters('vhubIteration')))]"
+                },
+                "connectionType": "IPsec",
+                "connectionProtocol": "IKEv2",
+                "routingWeight": 0,
+                "sharedKey": "[parameters('vpn_SharedKey')]",
+                "enableBgp": true,
+                "useLocalAzureIpAddress": false,
+                "usePolicyBasedTrafficSelectors": false,
+                "ipsecPolicies": [
+                  {
+                    "saLifeTimeSeconds": 3600,
+                    "saDataSizeKilobytes": 102400000,
+                    "ipsecEncryption": "AES256",
+                    "ipsecIntegrity": "SHA256",
+                    "ikeEncryption": "AES256",
+                    "ikeIntegrity": "SHA256",
+                    "dhGroup": "DHGroup14",
+                    "pfsGroup": "None"
+                  }
+                ],
+                "dpdTimeoutSeconds": 45,
+                "connectionMode": "Default"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/localNetworkGateways', format('{0}_lng_tovhub_{1}_0', parameters('rgName'), parameters('vhubIteration')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/connections",
+              "apiVersion": "2022-11-01",
+              "name": "[format('{0}_to_vhub_{1}_1', parameters('rgName'), parameters('vhubIteration'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "virtualNetworkGateway1": {
+                  "id": "[parameters('existingVNGID')]"
+                },
+                "localNetworkGateway2": {
+                  "id": "[resourceId('Microsoft.Network/localNetworkGateways', format('{0}_lng_tovhub_{1}_1', parameters('rgName'), parameters('vhubIteration')))]"
+                },
+                "connectionType": "IPsec",
+                "connectionProtocol": "IKEv2",
+                "routingWeight": 0,
+                "sharedKey": "[parameters('vpn_SharedKey')]",
+                "enableBgp": true,
+                "useLocalAzureIpAddress": false,
+                "usePolicyBasedTrafficSelectors": false,
+                "ipsecPolicies": [
+                  {
+                    "saLifeTimeSeconds": 3600,
+                    "saDataSizeKilobytes": 102400000,
+                    "ipsecEncryption": "AES256",
+                    "ipsecIntegrity": "SHA256",
+                    "ikeEncryption": "AES256",
+                    "ikeIntegrity": "SHA256",
+                    "dhGroup": "DHGroup14",
+                    "pfsGroup": "None"
+                  }
+                ],
+                "dpdTimeoutSeconds": 45,
+                "connectionMode": "Default"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/localNetworkGateways', format('{0}_lng_tovhub_{1}_1', parameters('rgName'), parameters('vhubIteration')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/localNetworkGateways",
+              "apiVersion": "2022-11-01",
+              "name": "[format('{0}_lng_tovhub_{1}_0', parameters('rgName'), parameters('vhubIteration'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "gatewayIpAddress": "[parameters('gatewayIPAddress_0')]",
+                "bgpSettings": {
+                  "asn": 65515,
+                  "bgpPeeringAddress": "[parameters('bgpPeeringAddress_0')]"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Network/localNetworkGateways",
+              "apiVersion": "2022-11-01",
+              "name": "[format('{0}_lng_tovhub_{1}_1', parameters('rgName'), parameters('vhubIteration'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "gatewayIpAddress": "[parameters('gatewayIPAddress_1')]",
+                "bgpSettings": {
+                  "asn": 65515,
+                  "bgpPeeringAddress": "[parameters('bgpPeeringAddress_1')]"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'mainHub')]"
+      ]
+    },
+    {
       "condition": "[parameters('multiRegion')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "branchHub",
+      "name": "branchHub1",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -861,7 +1192,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.18.4.5664",
-              "templateHash": "6625988285768594797"
+              "templateHash": "4808667982102573858"
             }
           },
           "parameters": {
@@ -880,7 +1211,6 @@
             },
             "vHub_Iteration": {
               "type": "int",
-              "defaultValue": 1,
               "maxValue": 9,
               "minValue": 1,
               "metadata": {
@@ -954,6 +1284,34 @@
                 "description": "VPN Shared Key used for authenticating VPN connections"
               }
             },
+            "destinationVPN_Name": {
+              "type": "string",
+              "defaultValue": "MainVPNSite",
+              "metadata": {
+                "description": "Name of the Destination VPN Site"
+              }
+            },
+            "destinationVPN_PublicAddress": {
+              "type": "string",
+              "defaultValue": "20.12.2.155",
+              "metadata": {
+                "description": "Public IP Address of the Destination VPN Site"
+              }
+            },
+            "destinationVPN_BGPAddress": {
+              "type": "string",
+              "defaultValue": "10.100.0.126",
+              "metadata": {
+                "description": "BGP Address of the Destination VPN Site"
+              }
+            },
+            "destinationVPN_ASN": {
+              "type": "int",
+              "defaultValue": 65516,
+              "metadata": {
+                "description": "Autonomous System Number (ASN) of the Destination VPN Site"
+              }
+            },
             "vnet_Iteration": {
               "type": "int",
               "defaultValue": 1,
@@ -1014,7 +1372,7 @@
             },
             "vm_Name": {
               "type": "string",
-              "defaultValue": "[format('testvm{0}', parameters('vHub_Iteration'))]",
+              "defaultValue": "[format('NetTestVM{0}', parameters('vHub_Iteration'))]",
               "metadata": {
                 "description": "Name of the Virtual Machine"
               }
@@ -1037,10 +1395,6 @@
               "metadata": {
                 "description": "Name of the Virtual Machines Network Interface"
               }
-            },
-            "vm_ScriptFileUri": {
-              "type": "string",
-              "defaultValue": "https://raw.githubusercontent.com/jimgodden/Azure-Virtual-WAN-Sandbox/main/scripts/InitScript.ps1"
             }
           },
           "resources": [
@@ -1110,7 +1464,7 @@
               "condition": "[parameters('usingVPN')]",
               "type": "Microsoft.Network/vpnSites",
               "apiVersion": "2022-11-01",
-              "name": "toMain",
+              "name": "[format('to{0}', parameters('destinationVPN_Name'))]",
               "location": "[parameters('location')]",
               "properties": {
                 "deviceProperties": {
@@ -1130,12 +1484,12 @@
                 },
                 "vpnSiteLinks": [
                   {
-                    "name": "Main",
+                    "name": "[parameters('destinationVPN_Name')]",
                     "properties": {
-                      "ipAddress": "20.12.2.155",
+                      "ipAddress": "[parameters('destinationVPN_PublicAddress')]",
                       "bgpProperties": {
-                        "asn": 65516,
-                        "bgpPeeringAddress": "10.100.0.126"
+                        "asn": "[parameters('destinationVPN_ASN')]",
+                        "bgpPeeringAddress": "[parameters('destinationVPN_BGPAddress')]"
                       },
                       "linkProperties": {
                         "linkProviderName": "Azure",
@@ -1169,12 +1523,15 @@
                 },
                 "enableInternetSecurity": false,
                 "remoteVpnSite": {
-                  "id": "[resourceId('Microsoft.Network/vpnSites', 'toMain')]"
+                  "id": "[resourceId('Microsoft.Network/vpnSites', format('to{0}', parameters('destinationVPN_Name')))]"
                 },
                 "vpnLinkConnections": [
                   {
                     "name": "Main",
                     "properties": {
+                      "vpnSiteLink": {
+                        "id": "[reference(resourceId('Microsoft.Network/vpnSites', format('to{0}', parameters('destinationVPN_Name'))), '2022-11-01').vpnSiteLinks[0].id]"
+                      },
                       "connectionBandwidth": 10,
                       "ipsecPolicies": [
                         {
@@ -1204,7 +1561,7 @@
               "dependsOn": [
                 "[resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name'))]",
                 "[resourceId('Microsoft.Network/virtualHubs/hubRouteTables', parameters('vHub_Name'), 'defaultRouteTable')]",
-                "[resourceId('Microsoft.Network/vpnSites', 'toMain')]"
+                "[resourceId('Microsoft.Network/vpnSites', format('to{0}', parameters('destinationVPN_Name')))]"
               ]
             },
             {
@@ -1225,11 +1582,6 @@
               "apiVersion": "2022-07-01",
               "name": "[parameters('AzFW_Name')]",
               "location": "[parameters('location')]",
-              "zones": [
-                "1",
-                "2",
-                "3"
-              ],
               "properties": {
                 "sku": {
                   "name": "AzFW_Hub",
@@ -1264,25 +1616,24 @@
                     "[parameters('vnet_AddressPrefix')]"
                   ]
                 },
+                "subnets": [
+                  {
+                    "name": "[parameters('subnet_Name')]",
+                    "properties": {
+                      "addressPrefix": "[parameters('subnet_AddressPrefix')]",
+                      "networkSecurityGroup": {
+                        "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSG_Name'))]"
+                      },
+                      "delegations": [],
+                      "privateEndpointNetworkPolicies": "Disabled",
+                      "privateLinkServiceNetworkPolicies": "Enabled"
+                    }
+                  }
+                ],
                 "enableDdosProtection": false
-              }
-            },
-            {
-              "type": "Microsoft.Network/virtualNetworks/subnets",
-              "apiVersion": "2022-09-01",
-              "name": "[format('{0}/{1}', parameters('vnet_Name'), parameters('subnet_Name'))]",
-              "properties": {
-                "addressPrefix": "[parameters('subnet_AddressPrefix')]",
-                "networkSecurityGroup": {
-                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSG_Name'))]"
-                },
-                "delegations": [],
-                "privateEndpointNetworkPolicies": "Disabled",
-                "privateLinkServiceNetworkPolicies": "Enabled"
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSG_Name'))]",
-                "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnet_Name'))]"
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('defaultNSG_Name'))]"
               ]
             },
             {
@@ -1316,143 +1667,223 @@
               ]
             },
             {
-              "type": "Microsoft.Network/networkInterfaces",
+              "type": "Microsoft.Resources/deployments",
               "apiVersion": "2022-09-01",
-              "name": "[parameters('nic_Name')]",
-              "location": "[parameters('location')]",
+              "name": "[format('NetTestVM{0}', parameters('vHub_Iteration'))]",
               "properties": {
-                "ipConfigurations": [
-                  {
-                    "name": "ipconfig1",
-                    "type": "Microsoft.Network/networkInterfaces/ipConfigurations",
-                    "properties": {
-                      "privateIPAllocationMethod": "Dynamic",
-                      "subnet": {
-                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnet_Name'), parameters('subnet_Name'))]"
-                      },
-                      "primary": true,
-                      "privateIPAddressVersion": "IPv4"
-                    }
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "location": {
+                    "value": "[parameters('location')]"
+                  },
+                  "nic_Name": {
+                    "value": "[parameters('nic_Name')]"
+                  },
+                  "subnetID": {
+                    "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', parameters('vnet_Name')), '2022-09-01').subnets[0].id]"
+                  },
+                  "vm_AdminPassword": {
+                    "value": "[parameters('vm_AdminPassword')]"
+                  },
+                  "vm_AdminUserName": {
+                    "value": "[parameters('vm_AdminUserName')]"
+                  },
+                  "vm_Name": {
+                    "value": "[parameters('vm_Name')]"
                   }
-                ],
-                "enableAcceleratedNetworking": false,
-                "enableIPForwarding": false,
-                "disableTcpStateTracking": false,
-                "nicType": "Standard"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnet_Name'), parameters('subnet_Name'))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Compute/virtualMachines",
-              "apiVersion": "2022-11-01",
-              "name": "[parameters('vm_Name')]",
-              "location": "[parameters('location')]",
-              "identity": {
-                "type": "SystemAssigned"
-              },
-              "properties": {
-                "hardwareProfile": {
-                  "vmSize": "Standard_B2ms"
                 },
-                "storageProfile": {
-                  "imageReference": {
-                    "publisher": "MicrosoftWindowsServer",
-                    "offer": "WindowsServer",
-                    "sku": "2022-datacenter-azure-edition",
-                    "version": "latest"
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.18.4.5664",
+                      "templateHash": "7305738495822575466"
+                    }
                   },
-                  "osDisk": {
-                    "osType": "Windows",
-                    "name": "[format('{0}_OsDisk_1', parameters('vm_Name'))]",
-                    "createOption": "FromImage",
-                    "caching": "ReadWrite",
-                    "managedDisk": {
-                      "storageAccountType": "Standard_LRS"
+                  "parameters": {
+                    "location": {
+                      "type": "string"
                     },
-                    "deleteOption": "Delete",
-                    "diskSizeGB": 127
-                  },
-                  "dataDisks": [],
-                  "diskControllerType": "SCSI"
-                },
-                "osProfile": {
-                  "computerName": "[parameters('vm_Name')]",
-                  "adminUsername": "[parameters('vm_AdminUserName')]",
-                  "adminPassword": "[parameters('vm_AdminPassword')]",
-                  "windowsConfiguration": {
-                    "provisionVMAgent": true,
-                    "enableAutomaticUpdates": true,
-                    "patchSettings": {
-                      "patchMode": "AutomaticByOS",
-                      "assessmentMode": "ImageDefault",
-                      "enableHotpatching": false
-                    },
-                    "enableVMAgentPlatformUpdates": false
-                  },
-                  "secrets": [],
-                  "allowExtensionOperations": true
-                },
-                "networkProfile": {
-                  "networkInterfaces": [
-                    {
-                      "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('nic_Name'))]",
-                      "properties": {
-                        "deleteOption": "Delete"
+                    "vm_Name": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Name of the Virtual Machine"
                       }
+                    },
+                    "vm_AdminUserName": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Admin Username for the Virtual Machine"
+                      }
+                    },
+                    "vm_AdminPassword": {
+                      "type": "securestring",
+                      "metadata": {
+                        "description": "Password for the Virtual Machine Admin User"
+                      }
+                    },
+                    "nic_Name": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Name of the Virtual Machines Network Interface"
+                      }
+                    },
+                    "subnetID": {
+                      "type": "string"
+                    },
+                    "vm_ScriptFileUri": {
+                      "type": "string",
+                      "defaultValue": "https://raw.githubusercontent.com/jimgodden/Azure-Virtual-WAN-Sandbox/main/scripts/InitScript.ps1"
+                    }
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Network/networkInterfaces",
+                      "apiVersion": "2022-09-01",
+                      "name": "[parameters('nic_Name')]",
+                      "location": "[parameters('location')]",
+                      "properties": {
+                        "ipConfigurations": [
+                          {
+                            "name": "ipconfig1",
+                            "type": "Microsoft.Network/networkInterfaces/ipConfigurations",
+                            "properties": {
+                              "privateIPAllocationMethod": "Dynamic",
+                              "subnet": {
+                                "id": "[parameters('subnetID')]"
+                              },
+                              "primary": true,
+                              "privateIPAddressVersion": "IPv4"
+                            }
+                          }
+                        ],
+                        "enableAcceleratedNetworking": false,
+                        "enableIPForwarding": false,
+                        "disableTcpStateTracking": false,
+                        "nicType": "Standard"
+                      }
+                    },
+                    {
+                      "type": "Microsoft.Compute/virtualMachines",
+                      "apiVersion": "2022-11-01",
+                      "name": "[parameters('vm_Name')]",
+                      "location": "[parameters('location')]",
+                      "identity": {
+                        "type": "SystemAssigned"
+                      },
+                      "properties": {
+                        "hardwareProfile": {
+                          "vmSize": "Standard_B2ms"
+                        },
+                        "storageProfile": {
+                          "imageReference": {
+                            "publisher": "MicrosoftWindowsServer",
+                            "offer": "WindowsServer",
+                            "sku": "2022-datacenter-azure-edition",
+                            "version": "latest"
+                          },
+                          "osDisk": {
+                            "osType": "Windows",
+                            "name": "[format('{0}_OsDisk_1', parameters('vm_Name'))]",
+                            "createOption": "FromImage",
+                            "caching": "ReadWrite",
+                            "managedDisk": {
+                              "storageAccountType": "Standard_LRS"
+                            },
+                            "deleteOption": "Delete",
+                            "diskSizeGB": 127
+                          },
+                          "dataDisks": [],
+                          "diskControllerType": "SCSI"
+                        },
+                        "osProfile": {
+                          "computerName": "[parameters('vm_Name')]",
+                          "adminUsername": "[parameters('vm_AdminUserName')]",
+                          "adminPassword": "[parameters('vm_AdminPassword')]",
+                          "windowsConfiguration": {
+                            "provisionVMAgent": true,
+                            "enableAutomaticUpdates": true,
+                            "patchSettings": {
+                              "patchMode": "AutomaticByOS",
+                              "assessmentMode": "ImageDefault",
+                              "enableHotpatching": false
+                            },
+                            "enableVMAgentPlatformUpdates": false
+                          },
+                          "secrets": [],
+                          "allowExtensionOperations": true
+                        },
+                        "networkProfile": {
+                          "networkInterfaces": [
+                            {
+                              "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('nic_Name'))]",
+                              "properties": {
+                                "deleteOption": "Delete"
+                              }
+                            }
+                          ]
+                        },
+                        "diagnosticsProfile": {
+                          "bootDiagnostics": {
+                            "enabled": true
+                          }
+                        }
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Network/networkInterfaces', parameters('nic_Name'))]"
+                      ]
+                    },
+                    {
+                      "type": "Microsoft.Compute/virtualMachines/extensions",
+                      "apiVersion": "2022-11-01",
+                      "name": "[format('{0}/{1}', parameters('vm_Name'), 'AzureNetworkWatcherExtension')]",
+                      "location": "[parameters('location')]",
+                      "properties": {
+                        "autoUpgradeMinorVersion": true,
+                        "publisher": "Microsoft.Azure.NetworkWatcher",
+                        "type": "NetworkWatcherAgentWindows",
+                        "typeHandlerVersion": "1.4"
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Compute/virtualMachines', parameters('vm_Name'))]"
+                      ]
+                    },
+                    {
+                      "type": "Microsoft.Compute/virtualMachines/extensions",
+                      "apiVersion": "2021-11-01",
+                      "name": "[format('{0}/{1}', parameters('vm_Name'), 'installcustomscript')]",
+                      "location": "[parameters('location')]",
+                      "tags": {
+                        "displayName": "install software for Windows VM"
+                      },
+                      "properties": {
+                        "publisher": "Microsoft.Compute",
+                        "type": "CustomScriptExtension",
+                        "typeHandlerVersion": "1.9",
+                        "autoUpgradeMinorVersion": true,
+                        "settings": {
+                          "fileUris": [
+                            "[parameters('vm_ScriptFileUri')]"
+                          ]
+                        },
+                        "protectedSettings": {
+                          "commandToExecute": "powershell -ExecutionPolicy Unrestricted -File InitScript.ps1"
+                        }
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.Compute/virtualMachines', parameters('vm_Name'))]"
+                      ]
                     }
                   ]
-                },
-                "diagnosticsProfile": {
-                  "bootDiagnostics": {
-                    "enabled": true
-                  }
                 }
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Network/networkInterfaces', parameters('nic_Name'))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Compute/virtualMachines/extensions",
-              "apiVersion": "2022-11-01",
-              "name": "[format('{0}/{1}', parameters('vm_Name'), 'AzureNetworkWatcherExtension')]",
-              "location": "[parameters('location')]",
-              "properties": {
-                "autoUpgradeMinorVersion": true,
-                "publisher": "Microsoft.Azure.NetworkWatcher",
-                "type": "NetworkWatcherAgentWindows",
-                "typeHandlerVersion": "1.4"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines', parameters('vm_Name'))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Compute/virtualMachines/extensions",
-              "apiVersion": "2021-11-01",
-              "name": "[format('{0}/{1}', parameters('vm_Name'), 'installcustomscript')]",
-              "location": "[parameters('location')]",
-              "tags": {
-                "displayName": "install software for Windows VM"
-              },
-              "properties": {
-                "publisher": "Microsoft.Compute",
-                "type": "CustomScriptExtension",
-                "typeHandlerVersion": "1.9",
-                "autoUpgradeMinorVersion": true,
-                "settings": {
-                  "fileUris": [
-                    "[parameters('vm_ScriptFileUri')]"
-                  ]
-                },
-                "protectedSettings": {
-                  "commandToExecute": "powershell -ExecutionPolicy Unrestricted -File InitScript.ps1"
-                }
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines', parameters('vm_Name'))]"
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnet_Name'))]"
               ]
             }
           ],
@@ -1472,6 +1903,22 @@
             "vnetName1": {
               "type": "string",
               "value": "[parameters('vnet_Name')]"
+            },
+            "vpnPubIP0": {
+              "type": "string",
+              "value": "[if(parameters('usingVPN'), reference(resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name')), '2022-07-01').bgpSettings.bgpPeeringAddresses[0].tunnelIpAddresses[0], '')]"
+            },
+            "vpnPubIP1": {
+              "type": "string",
+              "value": "[if(parameters('usingVPN'), reference(resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name')), '2022-07-01').bgpSettings.bgpPeeringAddresses[1].tunnelIpAddresses[0], '')]"
+            },
+            "vpnBGPIP0": {
+              "type": "string",
+              "value": "[if(parameters('usingVPN'), reference(resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name')), '2022-07-01').bgpSettings.bgpPeeringAddresses[0].defaultBgpIpAddresses[0], '')]"
+            },
+            "vpnBGPIP1": {
+              "type": "string",
+              "value": "[if(parameters('usingVPN'), reference(resourceId('Microsoft.Network/vpnGateways', parameters('AzureVNG_Name')), '2022-07-01').bgpSettings.bgpPeeringAddresses[1].defaultBgpIpAddresses[0], '')]"
             }
           }
         }
@@ -1491,16 +1938,16 @@
         "mode": "Incremental",
         "parameters": {
           "vHubName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vHubName.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vHubName.value]"
           },
           "vHubRouteTableDefaultID": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vHubRouteTableDefaultID.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vHubRouteTableDefaultID.value]"
           },
           "vnetID": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vnetID1.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vnetID1.value]"
           },
           "vnetName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vnetName1.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vnetName1.value]"
           }
         },
         "template": {
@@ -1566,7 +2013,8 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'mainHub')]"
+        "[resourceId('Microsoft.Resources/deployments', 'branchHub1')]",
+        "[resourceId('Microsoft.Resources/deployments', 'ConnectionToMainHubVPN')]"
       ]
     }
   ]

@@ -23,11 +23,11 @@ if (!$subID) {
 }
 Set-AzContext -Subscription $subID
 
+$vnggateway = Get-AzVirtualNetworkGateway -ResourceGroupName 'Main' -ResourceName Main_Hub_VNG
 
 $rgName = "Bicep_VWAN_Prod"
 $location_Main = "eastus2"
 $location_Branch1 = "westus2"
-
 
 Write-Host "Creating ${rgName}"
 New-AzResourceGroup -Name $rgName -Location $location_Main
@@ -35,7 +35,8 @@ New-AzResourceGroup -Name $rgName -Location $location_Main
 Write-Host "`nStarting Bicep Deployment.."
 New-AzResourceGroupDeployment -ResourceGroupName $rgName `
 -TemplateParameterFile $mainParameterFile -TemplateFile $mainBicepFile `
--mainLocation $location_Main -branchLocation $location_Branch1
+-mainLocation $location_Main -branchLocation $location_Branch1 `
+-existingVNGID $vnggateway.Id
 
 $vms = Get-AzVM -ResourceGroupName $rgName
 

@@ -7,7 +7,7 @@ param vwanID string
 @description('Current vHub Iteration')
 @minValue(1)
 @maxValue(9)
-param vHub_Iteration int = 1
+param vHub_Iteration int
 
 // vHub A
 @description('Name of the first Virtual Hub within the Virtual WAN')
@@ -43,13 +43,23 @@ param AzureVNG_Name string = 'vng${vHub_Iteration}'
 @secure()
 param vpn_SharedKey string
 
+@description('Name of the Destination VPN Site')
+param destinationVPN_Name string = 'MainVPNSite'
+
+@description('Public IP Address of the Destination VPN Site')
+param destinationVPN_PublicAddress string = '20.12.2.155'
+
+@description('BGP Address of the Destination VPN Site')
+param destinationVPN_BGPAddress string = '10.100.0.126'
+
+@description('Autonomous System Number (ASN) of the Destination VPN Site')
+param destinationVPN_ASN int = 65516
+
 // VNET Start
 @description('Current Virtual Network Iteration')
 @minValue(1)
 @maxValue(9)
 param vnet_Iteration int = 1
-
-
 
 @description('Name of the Virtual Network')
 param vnet_Name string = 'vnet_${vHub_Iteration}_${vnet_Iteration}'
@@ -137,7 +147,7 @@ resource AzureVNG 'Microsoft.Network/vpnGateways@2022-07-01' = if (usingVPN) {
 }
 
 resource vpn_Site 'Microsoft.Network/vpnSites@2022-11-01' = if (usingVPN) {
-  name: 'toMain'
+  name: 'to${destinationVPN_Name}'
   location: location
   properties: {
     deviceProperties: {
@@ -157,12 +167,12 @@ resource vpn_Site 'Microsoft.Network/vpnSites@2022-11-01' = if (usingVPN) {
     }
     vpnSiteLinks: [
       {
-        name: 'Main'
+        name: destinationVPN_Name
         properties: {
-          ipAddress: '20.12.2.155'
+          ipAddress: destinationVPN_PublicAddress
           bgpProperties: {
-            asn: 65516
-            bgpPeeringAddress: '10.100.0.126'
+            asn: destinationVPN_ASN
+            bgpPeeringAddress: destinationVPN_BGPAddress
           }
           linkProperties: {
             linkProviderName: 'Azure'
@@ -173,6 +183,7 @@ resource vpn_Site 'Microsoft.Network/vpnSites@2022-11-01' = if (usingVPN) {
     ]
   }
 }
+
 
 resource vpn_Connection 'Microsoft.Network/vpnGateways/vpnConnections@2022-11-01' = if (usingVPN) {
   parent: AzureVNG
@@ -201,9 +212,9 @@ resource vpn_Connection 'Microsoft.Network/vpnGateways/vpnConnections@2022-11-01
       {
         name: 'Main'
         properties: {
-          // vpnSiteLink: {
-          //   id: '${vpn_Site.id}/vpnSiteLinks/Main'
-          // }
+          vpnSiteLink: {
+            id: vpn_Site.properties.vpnSiteLinks[0].id
+          }
           connectionBandwidth: 10
           ipsecPolicies: [
             {
@@ -245,11 +256,6 @@ resource AzFW_Policy 'Microsoft.Network/firewallPolicies@2022-07-01' = if (using
 resource AzFW 'Microsoft.Network/azureFirewalls@2022-07-01' = if (usingAzFW) {
   name: AzFW_Name
   location: location
-  zones: [
-    '1'
-    '2'
-    '3'
-  ]
   properties: {
     sku: {
       name: 'AzFW_Hub'
@@ -280,21 +286,21 @@ resource vnet 'Microsoft.Network/virtualNetworks@2022-09-01' = {
         vnet_AddressPrefix
       ]
     }
+    subnets: [
+      {
+        name: subnet_Name
+        properties: {
+          addressPrefix: subnet_AddressPrefix
+        networkSecurityGroup: {
+          id: nsg.id
+        }
+        delegations: []
+        privateEndpointNetworkPolicies: 'Disabled'
+        privateLinkServiceNetworkPolicies: 'Enabled'
+        }
+      }
+    ]
     enableDdosProtection: false
-  }
-}
-
-resource subnet 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' = {
-  parent: vnet
-  name: subnet_Name
-  properties: {
-    addressPrefix: subnet_AddressPrefix
-    networkSecurityGroup: {
-      id: nsg.id
-    }
-    delegations: []
-    privateEndpointNetworkPolicies: 'Disabled'
-    privateLinkServiceNetworkPolicies: 'Enabled'
   }
 }
 
@@ -325,149 +331,26 @@ resource nsgRule 'Microsoft.Network/networkSecurityGroups/securityRules@2022-09-
   }
 }
 
-
 module vm1 '../Compute/NetTestVM.bicep' = {
   name: 'NetTestVM${vHub_Iteration}'
   params: {
     location: location
     nic_Name: nic_Name
-    subnetID: subnet.id
+    subnetID: vnet.properties.subnets[0].id
     vm_AdminPassword: vm_AdminPassword
     vm_AdminUserName: vm_AdminUserName
     vm_Name: vm_Name
   }
 }
 
-// resource nic 'Microsoft.Network/networkInterfaces@2022-09-01' = {
-//   name: nic_Name
-//   location: location
-//   properties: {
-//     ipConfigurations: [
-//       {
-//         name: 'ipconfig1'
-//         type: 'Microsoft.Network/networkInterfaces/ipConfigurations'
-//         properties: {
-//           privateIPAllocationMethod: 'Dynamic'
-//           subnet: {
-//             id: subnet.id
-//           }
-//           primary: true
-//           privateIPAddressVersion: 'IPv4'
-//         }
-//       }
-//     ]
-//     enableAcceleratedNetworking: false
-//     enableIPForwarding: false
-//     disableTcpStateTracking: false
-//     nicType: 'Standard'
-//   }
-// }
-
-// resource vm 'Microsoft.Compute/virtualMachines@2022-11-01' = {
-//   name: vm_Name
-//   location: location
-//   identity: {
-//     type: 'SystemAssigned'
-//   }
-//   properties: {
-//     hardwareProfile: {
-//       vmSize: 'Standard_B2ms'
-//     }
-//     storageProfile: {
-//       imageReference: {
-//         publisher: 'MicrosoftWindowsServer'
-//         offer: 'WindowsServer'
-//         sku: '2022-datacenter-azure-edition'
-//         version: 'latest'
-//       }
-//       osDisk: {
-//         osType: 'Windows'
-//         name: '${vm_Name}_OsDisk_1'
-//         createOption: 'FromImage'
-//         caching: 'ReadWrite'
-//         managedDisk: {
-//           storageAccountType: 'Standard_LRS'
-//           // id: resourceId('Microsoft.Compute/disks', '${vm_Name}_OsDisk_1')
-//         }
-//         deleteOption: 'Delete'
-//         diskSizeGB: 127
-//       }
-//       dataDisks: []
-//       diskControllerType: 'SCSI'
-//     }
-//     osProfile: {
-//       computerName: vm_Name
-//       adminUsername: vm_AdminUserName
-//       adminPassword: vm_AdminPassword
-//       windowsConfiguration: {
-//         provisionVMAgent: true
-//         enableAutomaticUpdates: true
-//         patchSettings: {
-//           patchMode: 'AutomaticByOS'
-//           assessmentMode: 'ImageDefault'
-//           enableHotpatching: false
-//         }
-//         enableVMAgentPlatformUpdates: false
-//       }
-//       secrets: []
-//       allowExtensionOperations: true
-//     }
-//     networkProfile: {
-//       networkInterfaces: [
-//         {
-//           id: nic.id
-//           properties: {
-//             deleteOption: 'Delete'
-//           }
-//         }
-//       ]
-//     }
-//     diagnosticsProfile: {
-//       bootDiagnostics: {
-//         enabled: true
-//       }
-//     }
-//   }
-// }
-
-// resource vm_NetworkWatcherExtension 'Microsoft.Compute/virtualMachines/extensions@2022-11-01' = {
-//   parent: vm
-//   name: 'AzureNetworkWatcherExtension'
-//   location: location
-//   properties: {
-//     autoUpgradeMinorVersion: true
-//     publisher: 'Microsoft.Azure.NetworkWatcher'
-//     type: 'NetworkWatcherAgentWindows'
-//     typeHandlerVersion: '1.4'
-//   }
-// }
-
-// resource vm_CustomScriptExtension 'Microsoft.Compute/virtualMachines/extensions@2021-11-01' = {
-//   parent: vm
-//   name: 'installcustomscript'
-//   location: location
-//   tags: {
-//     displayName: 'install software for Windows VM'
-//   }
-//   properties: {
-//     publisher: 'Microsoft.Compute'
-//     type: 'CustomScriptExtension'
-//     typeHandlerVersion: '1.9'
-//     autoUpgradeMinorVersion: true
-//     settings: {
-//       fileUris: [
-//         vm_ScriptFileUri
-//       ]
-//     }
-//     protectedSettings: {
-//       commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File InitScript.ps1'
-//     }
-//   }
-// }
-
-
-
+// Values for connecting the vHub to a Virtual Network
 output vHubName string = vHub_Name
 output vHubRouteTableDefaultID string = vHub_RouteTable_Default.id
 output vnetID1 string = vnet.id
 output vnetName1 string = vnet_Name
+
+// values for destination Local Network Gateway
+output vpnPubIP0 string = usingVPN ? AzureVNG.properties.bgpSettings.bgpPeeringAddresses[0].tunnelIpAddresses[0] : ''
+output vpnPubIP1 string = usingVPN ? AzureVNG.properties.bgpSettings.bgpPeeringAddresses[1].tunnelIpAddresses[0] : ''
+output vpnBGPIP0 string = usingVPN ? AzureVNG.properties.bgpSettings.bgpPeeringAddresses[0].defaultBgpIpAddresses[0] : ''
+output vpnBGPIP1 string = usingVPN ? AzureVNG.properties.bgpSettings.bgpPeeringAddresses[1].defaultBgpIpAddresses[0] : ''

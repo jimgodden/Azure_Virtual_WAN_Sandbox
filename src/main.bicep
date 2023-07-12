@@ -1,11 +1,11 @@
 @description('Azure Datacenter location that the main resouces will be deployed to.')
 param mainLocation string = resourceGroup().location
 
-@description('Deploys a vHub in another location for multi region connectivity')
-param multiRegion bool = true
-
 @description('Azure Datacenter location that the branch resouces will be deployed to.')
 param branchLocation string = 'westus2'
+
+@description('Deploys a vHub in another location for multi region connectivity')
+param multiRegion bool = true
 
 // VWAN Start
 @description('Name of the Virtual WAN resource')
@@ -21,6 +21,10 @@ param vm_AdminPassword string
 @description('VPN Shared Key used for authenticating VPN connections')
 @secure()
 param vpn_SharedKey string
+
+@description('Existing Virtual Network Gateway ID')
+param existingVNGID string
+
 
 resource VWAN 'Microsoft.Network/virtualWans@2022-07-01' = {
   name: VWAN_Name
@@ -58,6 +62,21 @@ module MainvHubVNetConn_1 './modules/Networking/hubVirtualNetworkConnections.bic
   }
 }
 
+module ConnectionToMainHubVPN 'modules/Networking/destinationVNGConnection.bicep' = {
+  name: 'ConnectionToMainHubVPN'
+  // scope: resourceGroup(existingRG)
+  params: {
+    bgpPeeringAddress_0: mainHub.outputs.vpnBGPIP0
+    bgpPeeringAddress_1: mainHub.outputs.vpnBGPIP1
+    gatewayIPAddress_0: mainHub.outputs.vpnPubIP0
+    gatewayIPAddress_1: mainHub.outputs.vpnPubIP1
+    location: mainLocation
+    vhubIteration: 1
+    existingVNGID: existingVNGID
+    vpn_SharedKey: vpn_SharedKey
+  }
+}
+
 module branchHub './modules/Networking/hubAll.bicep' = if (multiRegion) {
   name: 'branchHub1'
   params: {
@@ -77,9 +96,14 @@ module BranchvHubVNetConn_1_1 './modules/Networking/hubVirtualNetworkConnections
   // name: '${mainHub.outputs.vHubName}_to_${vnet_Name}_Conn'
   name: 'Branch1_vHub_to_vnet1_Conn'
   params: {
-    vHubName: mainHub.outputs.vHubName
-    vHubRouteTableDefaultID: mainHub.outputs.vHubRouteTableDefaultID
-    vnetID: mainHub.outputs.vnetID1
-    vnetName: mainHub.outputs.vnetName1
+    vHubName: branchHub.outputs.vHubName
+    vHubRouteTableDefaultID: branchHub.outputs.vHubRouteTableDefaultID
+    vnetID: branchHub.outputs.vnetID1
+    vnetName: branchHub.outputs.vnetName1
   }
+  // The connection fails if it is deployed when Bicep deems possible.
+  // This dependsOn ensures that it is deployed long after the resources are ready
+  dependsOn: [
+    ConnectionToMainHubVPN
+  ]
 }
