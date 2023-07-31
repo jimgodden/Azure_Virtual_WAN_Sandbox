@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.18.4.5664",
-      "templateHash": "11345926041427658848"
+      "templateHash": "18065576348361462687"
     }
   },
   "parameters": {
@@ -18,7 +18,7 @@
     },
     "mainRG_Name": {
       "type": "string",
-      "defaultValue": "MainRG",
+      "defaultValue": "VWAN_Sandbox_Main_RG",
       "metadata": {
         "description": "Name of the Resource Group that the MainHub will be deployed to."
       }
@@ -32,7 +32,7 @@
     },
     "branchRG_Name": {
       "type": "string",
-      "defaultValue": "BranchRG",
+      "defaultValue": "VWAN_Sandbox_Branch_RG",
       "metadata": {
         "description": "Name of the Resource Group that the MainHub will be deployed to."
       }
@@ -46,7 +46,7 @@
     },
     "onPremRG_Name": {
       "type": "string",
-      "defaultValue": "OnPremRG",
+      "defaultValue": "VWAN_Sandbox_OnPrem_RG",
       "metadata": {
         "description": "Name of the Resource Group that the MainHub will be deployed to."
       }
@@ -83,13 +83,6 @@
         "description": "VPN Shared Key used for authenticating VPN connections.  This Shared Key must be the same key that is used on the Virtual Network Gateway that is being connected to the vWAN's S2S VPNs."
       }
     },
-    "VWAN_ASN": {
-      "type": "int",
-      "defaultValue": 65515,
-      "metadata": {
-        "description": "ASN of the VWAN VPN"
-      }
-    },
     "OnPrem_ASN": {
       "type": "int",
       "defaultValue": 65200,
@@ -97,6 +90,9 @@
         "description": "ASN of the On Prem VPN"
       }
     }
+  },
+  "variables": {
+    "VWAN_ASN": 65515
   },
   "resources": [
     {
@@ -3455,7 +3451,7 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnPubIP1.value]"
           },
           "VWAN_ASN": {
-            "value": "[parameters('VWAN_ASN')]"
+            "value": "[variables('VWAN_ASN')]"
           },
           "location": {
             "value": "[parameters('onPremLocation')]"
@@ -3677,7 +3673,7 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vpnPubIP1.value]"
           },
           "VWAN_ASN": {
-            "value": "[parameters('VWAN_ASN')]"
+            "value": "[variables('VWAN_ASN')]"
           },
           "location": {
             "value": "[parameters('onPremLocation')]"

@@ -4,19 +4,19 @@ targetScope = 'subscription'
 param multiRegion bool = true
 
 @description('Name of the Resource Group that the MainHub will be deployed to.')
-param mainRG_Name string = 'MainRG'
+param mainRG_Name string = 'VWAN_Sandbox_Main_RG'
 
 @description('Azure Datacenter location that the main resouces will be deployed to.')
 param mainLocation string = 'eastus2'
 
 @description('Name of the Resource Group that the MainHub will be deployed to.')
-param branchRG_Name string = 'BranchRG'
+param branchRG_Name string = 'VWAN_Sandbox_Branch_RG'
 
 @description('Azure Datacenter location that the branch resouces will be deployed to.  This can be left blank if you are not deploying the hub in multiple regions')
 param branchLocation string = 'westus2'
 
 @description('Name of the Resource Group that the MainHub will be deployed to.')
-param onPremRG_Name string = 'OnPremRG'
+param onPremRG_Name string = 'VWAN_Sandbox_OnPrem_RG'
 
 @description('Azure Datacenter location that the "OnPrem" resouces will be deployed to.')
 param onPremLocation string = 'eastus'
@@ -35,11 +35,11 @@ param vm_AdminPassword string
 @secure()
 param vpn_SharedKey string
 
-@description('ASN of the VWAN VPN')
-param VWAN_ASN int = 65515
-
 @description('ASN of the On Prem VPN')
 param OnPrem_ASN int = 65200
+
+@description('ASN of the VWAN VPN')
+var VWAN_ASN = 65515
 
 resource MainRG 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: mainRG_Name
