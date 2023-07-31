@@ -1,11 +1,22 @@
+targetScope = 'subscription'
+
 @description('Deploys a vHub in another location for multi region connectivity if set to True.')
 param multiRegion bool = true
+
+@description('Name of the Resource Group that the MainHub will be deployed to.')
+param mainRG_Name string = 'MainRG'
 
 @description('Azure Datacenter location that the main resouces will be deployed to.')
 param mainLocation string = 'eastus2'
 
+@description('Name of the Resource Group that the MainHub will be deployed to.')
+param branchRG_Name string = 'BranchRG'
+
 @description('Azure Datacenter location that the branch resouces will be deployed to.  This can be left blank if you are not deploying the hub in multiple regions')
 param branchLocation string = 'westus2'
+
+@description('Name of the Resource Group that the MainHub will be deployed to.')
+param onPremRG_Name string = 'OnPremRG'
 
 @description('Azure Datacenter location that the "OnPrem" resouces will be deployed to.')
 param onPremLocation string = 'eastus'
@@ -30,21 +41,36 @@ param VWAN_ASN int = 65515
 @description('ASN of the On Prem VPN')
 param OnPrem_ASN int = 65200
 
-resource VWAN 'Microsoft.Network/virtualWans@2022-07-01' = {
-  name: VWAN_Name
+resource MainRG 'Microsoft.Resources/resourceGroups@2022-09-01' = {
+  name: mainRG_Name
   location: mainLocation
-  properties: {
-    disableVpnEncryption: false
-    allowBranchToBranchTraffic: true
-    type: 'Standard'
+}
+
+resource BranchRG 'Microsoft.Resources/resourceGroups@2022-09-01' = if (multiRegion) {
+  name: branchRG_Name
+  location: branchLocation
+}
+
+resource OnPremRG 'Microsoft.Resources/resourceGroups@2022-09-01' = {
+  name: onPremRG_Name
+  location: onPremLocation
+}
+
+module vWAN 'modules/Networking/vwan.bicep' = {
+  scope: MainRG
+  name: 'Virtual WAN'
+  params: {
+    location: mainLocation
+    VWAN_Name: VWAN_Name
   }
 }
 
 module mainHub './modules/Networking/hubAndContents.bicep' = {
   name: 'mainHub'
+  scope: MainRG
   params: {
     location: mainLocation
-    vwanID: VWAN.id
+    vwanID: vWAN.outputs.vwanID
     vm_AdminUserName: vm_AdminUserName
     vm_AdminPassword: vm_AdminPassword
     vHub_Iteration: 1
@@ -55,6 +81,7 @@ module mainHub './modules/Networking/hubAndContents.bicep' = {
 
 module MainvHubVNetConn_1 './modules/Networking/hubVirtualNetworkConnections.bicep' = {
   name: 'Main_vHub_to_vnet1_Conn'
+  scope: MainRG
   params: {
     vHubName: mainHub.outputs.vHubName
     vHubRouteTableDefaultID: mainHub.outputs.vHubRouteTableDefaultID
@@ -65,6 +92,7 @@ module MainvHubVNetConn_1 './modules/Networking/hubVirtualNetworkConnections.bic
 
 module MainHub_To_OnPrem 'modules/Networking/VWANToVNGConnection.bicep' = {
   name: 'MainHub_To_OnPrem'
+  scope: MainRG
   params: {
     destinationVPN_ASN: OnPremResources.outputs.onpremVNGASN
     destinationVPN_BGPAddress: OnPremResources.outputs.onPremVNGBGPAddress
@@ -75,15 +103,16 @@ module MainHub_To_OnPrem 'modules/Networking/VWANToVNGConnection.bicep' = {
     vHub_RouteTable_Default_ResourceID: mainHub.outputs.vHubRouteTableDefaultID
     vpn_SharedKey: vpn_SharedKey
     vwan_VPN_Name: mainHub.outputs.vpnName
-    vwanID: VWAN.id
+    vwanID: vWAN.outputs.vwanID
   }
 }
 
 module branchHub './modules/Networking/hubAndContents.bicep' = if (multiRegion) {
   name: 'branchHub1'
+  scope: BranchRG
   params: {
     location: branchLocation
-    vwanID: VWAN.id
+    vwanID: vWAN.outputs.vwanID
     vm_AdminUserName: vm_AdminUserName
     vm_AdminPassword: vm_AdminPassword
     vHub_Iteration: 2
@@ -94,21 +123,18 @@ module branchHub './modules/Networking/hubAndContents.bicep' = if (multiRegion) 
 
 module BranchvHubVNetConn_1_1 './modules/Networking/hubVirtualNetworkConnections.bicep' = if (multiRegion) {
   name: 'Branch1_vHub_to_vnet1_Conn'
+  scope: BranchRG
   params: {
     vHubName: branchHub.outputs.vHubName
     vHubRouteTableDefaultID: branchHub.outputs.vHubRouteTableDefaultID
     vnetID: branchHub.outputs.vnetID1
     vnetName: branchHub.outputs.vnetName1
   }
-  // The connection fails if it is deployed when Bicep deems possible.
-  // This dependsOn ensures that it is deployed long after the resources are ready
-  // dependsOn: [
-  //   ConnectionToMainHubVPN
-  // ]
 }
 
 module BranchHub_To_OnPrem 'modules/Networking/VWANToVNGConnection.bicep' = if (multiRegion) {
   name: 'BranchHub_To_OnPrem'
+  scope: BranchRG
   params: {
     destinationVPN_ASN: OnPremResources.outputs.onpremVNGASN
     destinationVPN_BGPAddress: OnPremResources.outputs.onPremVNGBGPAddress
@@ -119,12 +145,13 @@ module BranchHub_To_OnPrem 'modules/Networking/VWANToVNGConnection.bicep' = if (
     vHub_RouteTable_Default_ResourceID: branchHub.outputs.vHubRouteTableDefaultID
     vpn_SharedKey: vpn_SharedKey
     vwan_VPN_Name: branchHub.outputs.vpnName
-    vwanID: VWAN.id
+    vwanID: vWAN.outputs.vwanID
   }
 }
 
 module OnPremResources 'modules/OnPremResources/main_OnPremResources.bicep' = {
   name: 'OnPremResources'
+  scope: OnPremRG
   params: {
     location: onPremLocation
     vm_AdminPassword: vm_AdminPassword
@@ -135,6 +162,7 @@ module OnPremResources 'modules/OnPremResources/main_OnPremResources.bicep' = {
 
 module OnPrem_To_MainHub 'modules/Networking/VNGToVWANConnection.bicep' = {
   name: 'OnPrem_To_MainHub'
+  scope: OnPremRG
   params: {
     bgpPeeringAddress_0: mainHub.outputs.vpnBGPIP0
     bgpPeeringAddress_1: mainHub.outputs.vpnBGPIP1
@@ -150,6 +178,7 @@ module OnPrem_To_MainHub 'modules/Networking/VNGToVWANConnection.bicep' = {
 
 module OnPrem_To_BranchHub 'modules/Networking/VNGToVWANConnection.bicep' = if (multiRegion) {
   name: 'OnPrem_To_BranchHub'
+  scope: OnPremRG
   params: {
     bgpPeeringAddress_0: branchHub.outputs.vpnBGPIP0
     bgpPeeringAddress_1: branchHub.outputs.vpnBGPIP1

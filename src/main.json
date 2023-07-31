@@ -1,11 +1,11 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "metadata": {
     "_generator": {
       "name": "bicep",
       "version": "0.18.4.5664",
-      "templateHash": "16690193272208385910"
+      "templateHash": "6501054439243458648"
     }
   },
   "parameters": {
@@ -16,6 +16,13 @@
         "description": "Deploys a vHub in another location for multi region connectivity if set to True."
       }
     },
+    "mainRG_Name": {
+      "type": "string",
+      "defaultValue": "MainRG",
+      "metadata": {
+        "description": "Name of the Resource Group that the MainHub will be deployed to."
+      }
+    },
     "mainLocation": {
       "type": "string",
       "defaultValue": "eastus2",
@@ -23,11 +30,25 @@
         "description": "Azure Datacenter location that the main resouces will be deployed to."
       }
     },
+    "branchRG_Name": {
+      "type": "string",
+      "defaultValue": "BranchRG",
+      "metadata": {
+        "description": "Name of the Resource Group that the MainHub will be deployed to."
+      }
+    },
     "branchLocation": {
       "type": "string",
       "defaultValue": "westus2",
       "metadata": {
         "description": "Azure Datacenter location that the branch resouces will be deployed to.  This can be left blank if you are not deploying the hub in multiple regions"
+      }
+    },
+    "onPremRG_Name": {
+      "type": "string",
+      "defaultValue": "OnPremRG",
+      "metadata": {
+        "description": "Name of the Resource Group that the MainHub will be deployed to."
       }
     },
     "onPremLocation": {
@@ -79,20 +100,96 @@
   },
   "resources": [
     {
-      "type": "Microsoft.Network/virtualWans",
-      "apiVersion": "2022-07-01",
-      "name": "[parameters('VWAN_Name')]",
-      "location": "[parameters('mainLocation')]",
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('mainRG_Name')]",
+      "location": "[parameters('mainLocation')]"
+    },
+    {
+      "condition": "[parameters('multiRegion')]",
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('branchRG_Name')]",
+      "location": "[parameters('branchLocation')]"
+    },
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('onPremRG_Name')]",
+      "location": "[parameters('onPremLocation')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "Virtual WAN",
+      "resourceGroup": "[parameters('mainRG_Name')]",
       "properties": {
-        "disableVpnEncryption": false,
-        "allowBranchToBranchTraffic": true,
-        "type": "Standard"
-      }
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('mainLocation')]"
+          },
+          "VWAN_Name": {
+            "value": "[parameters('VWAN_Name')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.18.4.5664",
+              "templateHash": "4867366990814088602"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure Datacenter location that the main resouces will be deployed to."
+              }
+            },
+            "VWAN_Name": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Virtual WAN resource"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualWans",
+              "apiVersion": "2022-07-01",
+              "name": "[parameters('VWAN_Name')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "disableVpnEncryption": false,
+                "allowBranchToBranchTraffic": true,
+                "type": "Standard"
+              }
+            }
+          ],
+          "outputs": {
+            "vwanID": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualWans', parameters('VWAN_Name'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('mainRG_Name'))]"
+      ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "mainHub",
+      "resourceGroup": "[parameters('mainRG_Name')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -103,7 +200,7 @@
             "value": "[parameters('mainLocation')]"
           },
           "vwanID": {
-            "value": "[resourceId('Microsoft.Network/virtualWans', parameters('VWAN_Name'))]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN'), '2022-09-01').outputs.vwanID.value]"
           },
           "vm_AdminUserName": {
             "value": "[parameters('vm_AdminUserName')]"
@@ -812,13 +909,15 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualWans', parameters('VWAN_Name'))]"
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('mainRG_Name'))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN')]"
       ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "Main_vHub_to_vnet1_Conn",
+      "resourceGroup": "[parameters('mainRG_Name')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -826,16 +925,16 @@
         "mode": "Incremental",
         "parameters": {
           "vHubName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vHubName.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vHubName.value]"
           },
           "vHubRouteTableDefaultID": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vHubRouteTableDefaultID.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vHubRouteTableDefaultID.value]"
           },
           "vnetID": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vnetID1.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vnetID1.value]"
           },
           "vnetName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vnetName1.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vnetName1.value]"
           }
         },
         "template": {
@@ -901,13 +1000,15 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'mainHub')]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('mainRG_Name'))]"
       ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "MainHub_To_OnPrem",
+      "resourceGroup": "[parameters('mainRG_Name')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -915,34 +1016,34 @@
         "mode": "Incremental",
         "parameters": {
           "destinationVPN_ASN": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onpremVNGASN.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onpremVNGASN.value]"
           },
           "destinationVPN_BGPAddress": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onPremVNGBGPAddress.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onPremVNGBGPAddress.value]"
           },
           "destinationVPN_Name": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onpremVNGName.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onpremVNGName.value]"
           },
           "destinationVPN_PublicAddress": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onpremVNGPIP.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onpremVNGPIP.value]"
           },
           "location": {
             "value": "[parameters('mainLocation')]"
           },
           "vhub_name": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vHubName.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vHubName.value]"
           },
           "vHub_RouteTable_Default_ResourceID": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vHubRouteTableDefaultID.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vHubRouteTableDefaultID.value]"
           },
           "vpn_SharedKey": {
             "value": "[parameters('vpn_SharedKey')]"
           },
           "vwan_VPN_Name": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnName.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnName.value]"
           },
           "vwanID": {
-            "value": "[resourceId('Microsoft.Network/virtualWans', parameters('VWAN_Name'))]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN'), '2022-09-01').outputs.vwanID.value]"
           }
         },
         "template": {
@@ -1095,9 +1196,10 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'mainHub')]",
-        "[resourceId('Microsoft.Resources/deployments', 'OnPremResources')]",
-        "[resourceId('Microsoft.Network/virtualWans', parameters('VWAN_Name'))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('mainRG_Name'))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN')]"
       ]
     },
     {
@@ -1105,6 +1207,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "branchHub1",
+      "resourceGroup": "[parameters('branchRG_Name')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -1115,7 +1218,7 @@
             "value": "[parameters('branchLocation')]"
           },
           "vwanID": {
-            "value": "[resourceId('Microsoft.Network/virtualWans', parameters('VWAN_Name'))]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN'), '2022-09-01').outputs.vwanID.value]"
           },
           "vm_AdminUserName": {
             "value": "[parameters('vm_AdminUserName')]"
@@ -1824,7 +1927,8 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualWans', parameters('VWAN_Name'))]"
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('branchRG_Name'))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN')]"
       ]
     },
     {
@@ -1832,6 +1936,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "Branch1_vHub_to_vnet1_Conn",
+      "resourceGroup": "[parameters('branchRG_Name')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -1839,16 +1944,16 @@
         "mode": "Incremental",
         "parameters": {
           "vHubName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vHubName.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vHubName.value]"
           },
           "vHubRouteTableDefaultID": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vHubRouteTableDefaultID.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vHubRouteTableDefaultID.value]"
           },
           "vnetID": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vnetID1.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vnetID1.value]"
           },
           "vnetName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vnetName1.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vnetName1.value]"
           }
         },
         "template": {
@@ -1914,7 +2019,8 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'branchHub1')]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('branchRG_Name'))]"
       ]
     },
     {
@@ -1922,6 +2028,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "BranchHub_To_OnPrem",
+      "resourceGroup": "[parameters('branchRG_Name')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -1929,34 +2036,34 @@
         "mode": "Incremental",
         "parameters": {
           "destinationVPN_ASN": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onpremVNGASN.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onpremVNGASN.value]"
           },
           "destinationVPN_BGPAddress": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onPremVNGBGPAddress.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onPremVNGBGPAddress.value]"
           },
           "destinationVPN_Name": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onpremVNGName.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onpremVNGName.value]"
           },
           "destinationVPN_PublicAddress": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onpremVNGPIP.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onpremVNGPIP.value]"
           },
           "location": {
             "value": "[parameters('branchLocation')]"
           },
           "vhub_name": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vHubName.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vHubName.value]"
           },
           "vHub_RouteTable_Default_ResourceID": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vHubRouteTableDefaultID.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vHubRouteTableDefaultID.value]"
           },
           "vpn_SharedKey": {
             "value": "[parameters('vpn_SharedKey')]"
           },
           "vwan_VPN_Name": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vpnName.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vpnName.value]"
           },
           "vwanID": {
-            "value": "[resourceId('Microsoft.Network/virtualWans', parameters('VWAN_Name'))]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN'), '2022-09-01').outputs.vwanID.value]"
           }
         },
         "template": {
@@ -2109,15 +2216,17 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'branchHub1')]",
-        "[resourceId('Microsoft.Resources/deployments', 'OnPremResources')]",
-        "[resourceId('Microsoft.Network/virtualWans', parameters('VWAN_Name'))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('branchRG_Name'))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN')]"
       ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "OnPremResources",
+      "resourceGroup": "[parameters('onPremRG_Name')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -3317,12 +3426,16 @@
             }
           }
         }
-      }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('onPremRG_Name'))]"
+      ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "OnPrem_To_MainHub",
+      "resourceGroup": "[parameters('onPremRG_Name')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -3330,16 +3443,16 @@
         "mode": "Incremental",
         "parameters": {
           "bgpPeeringAddress_0": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnBGPIP0.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnBGPIP0.value]"
           },
           "bgpPeeringAddress_1": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnBGPIP1.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnBGPIP1.value]"
           },
           "gatewayIPAddress_0": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnPubIP0.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnPubIP0.value]"
           },
           "gatewayIPAddress_1": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnPubIP1.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnPubIP1.value]"
           },
           "VWAN_ASN": {
             "value": "[parameters('VWAN_ASN')]"
@@ -3348,7 +3461,7 @@
             "value": "[parameters('onPremLocation')]"
           },
           "onPremVNGResourceID": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onPremVNGResourceID.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onPremVNGResourceID.value]"
           },
           "vhubIteration": {
             "value": 1
@@ -3534,8 +3647,9 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'mainHub')]",
-        "[resourceId('Microsoft.Resources/deployments', 'OnPremResources')]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('onPremRG_Name'))]"
       ]
     },
     {
@@ -3543,6 +3657,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "OnPrem_To_BranchHub",
+      "resourceGroup": "[parameters('onPremRG_Name')]",
       "properties": {
         "expressionEvaluationOptions": {
           "scope": "inner"
@@ -3550,16 +3665,16 @@
         "mode": "Incremental",
         "parameters": {
           "bgpPeeringAddress_0": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vpnBGPIP0.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vpnBGPIP0.value]"
           },
           "bgpPeeringAddress_1": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vpnBGPIP1.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vpnBGPIP1.value]"
           },
           "gatewayIPAddress_0": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vpnPubIP0.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vpnPubIP0.value]"
           },
           "gatewayIPAddress_1": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vpnPubIP1.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vpnPubIP1.value]"
           },
           "VWAN_ASN": {
             "value": "[parameters('VWAN_ASN')]"
@@ -3568,7 +3683,7 @@
             "value": "[parameters('onPremLocation')]"
           },
           "onPremVNGResourceID": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onPremVNGResourceID.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources'), '2022-09-01').outputs.onPremVNGResourceID.value]"
           },
           "vhubIteration": {
             "value": 2
@@ -3754,8 +3869,9 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'branchHub1')]",
-        "[resourceId('Microsoft.Resources/deployments', 'OnPremResources')]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('onPremRG_Name'))]"
       ]
     }
   ]
