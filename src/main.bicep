@@ -58,7 +58,7 @@ resource OnPremRG 'Microsoft.Resources/resourceGroups@2022-09-01' = {
 
 module vWAN 'modules/Networking/vwan.bicep' = {
   scope: MainRG
-  name: 'Virtual WAN'
+  name: 'virtualWAN'
   params: {
     location: mainLocation
     VWAN_Name: VWAN_Name
