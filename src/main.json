@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.18.4.5664",
-      "templateHash": "6501054439243458648"
+      "templateHash": "11345926041427658848"
     }
   },
   "parameters": {
@@ -121,7 +121,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "Virtual WAN",
+      "name": "virtualWAN",
       "resourceGroup": "[parameters('mainRG_Name')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -200,7 +200,7 @@
             "value": "[parameters('mainLocation')]"
           },
           "vwanID": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN'), '2022-09-01').outputs.vwanID.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'virtualWAN'), '2022-09-01').outputs.vwanID.value]"
           },
           "vm_AdminUserName": {
             "value": "[parameters('vm_AdminUserName')]"
@@ -910,7 +910,7 @@
       },
       "dependsOn": [
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('mainRG_Name'))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN')]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'virtualWAN')]"
       ]
     },
     {
@@ -1043,7 +1043,7 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub'), '2022-09-01').outputs.vpnName.value]"
           },
           "vwanID": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN'), '2022-09-01').outputs.vwanID.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'virtualWAN'), '2022-09-01').outputs.vwanID.value]"
           }
         },
         "template": {
@@ -1199,7 +1199,7 @@
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'mainHub')]",
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('mainRG_Name'))]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources')]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN')]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'virtualWAN')]"
       ]
     },
     {
@@ -1218,7 +1218,7 @@
             "value": "[parameters('branchLocation')]"
           },
           "vwanID": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN'), '2022-09-01').outputs.vwanID.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'virtualWAN'), '2022-09-01').outputs.vwanID.value]"
           },
           "vm_AdminUserName": {
             "value": "[parameters('vm_AdminUserName')]"
@@ -1928,7 +1928,7 @@
       },
       "dependsOn": [
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('branchRG_Name'))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN')]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'virtualWAN')]"
       ]
     },
     {
@@ -2063,7 +2063,7 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1'), '2022-09-01').outputs.vpnName.value]"
           },
           "vwanID": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN'), '2022-09-01').outputs.vwanID.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'virtualWAN'), '2022-09-01').outputs.vwanID.value]"
           }
         },
         "template": {
@@ -2219,7 +2219,7 @@
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('branchRG_Name')), 'Microsoft.Resources/deployments', 'branchHub1')]",
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('branchRG_Name'))]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('onPremRG_Name')), 'Microsoft.Resources/deployments', 'OnPremResources')]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'Virtual WAN')]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('mainRG_Name')), 'Microsoft.Resources/deployments', 'virtualWAN')]"
       ]
     },
     {
