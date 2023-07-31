@@ -21,16 +21,17 @@ param bgpPeeringAddress_1 string
 param vpn_SharedKey string
 
 @description('Existing Virtual Network Gateway ID')
-param existingVNGID string
+param onPremVNGResourceID string
 
-param rgName string = resourceGroup().name
+@description('ASN of the Destination VPN')
+param VWAN_ASN int
 
 resource connection0 'Microsoft.Network/connections@2022-11-01' = {
-    name: '${rgName}_to_vhub_${vhubIteration}_0'
+    name: 'OnPrem_to_vhub_${vhubIteration}_0'
     location: location
     properties: {
       virtualNetworkGateway1: {
-        id: existingVNGID
+        id: onPremVNGResourceID
         properties: {
           
         }
@@ -66,11 +67,11 @@ resource connection0 'Microsoft.Network/connections@2022-11-01' = {
 }
 
 resource connection1 'Microsoft.Network/connections@2022-11-01' = {
-  name: '${rgName}_to_vhub_${vhubIteration}_1'
+  name: 'OnPrem_to_vhub_${vhubIteration}_1'
   location: location
   properties: {
     virtualNetworkGateway1: {
-      id: existingVNGID
+      id: onPremVNGResourceID
       properties: {
         
       }
@@ -106,24 +107,24 @@ resource connection1 'Microsoft.Network/connections@2022-11-01' = {
 }
 
 resource lng0 'Microsoft.Network/localNetworkGateways@2022-11-01' = {
-  name: '${rgName}_lng_tovhub_${vhubIteration}_0'
+  name: 'OnPrem_lng_for_vhub_${vhubIteration}_0'
   location: location
   properties: {
     gatewayIpAddress: gatewayIPAddress_0
     bgpSettings: {
-      asn: 65515
+      asn: VWAN_ASN
       bgpPeeringAddress: bgpPeeringAddress_0
     }
   }
 }
 
 resource lng1 'Microsoft.Network/localNetworkGateways@2022-11-01' = {
-  name: '${rgName}_lng_tovhub_${vhubIteration}_1'
+  name: 'OnPrem_lng_for_vhub_${vhubIteration}_1'
   location: location
   properties: {
     gatewayIpAddress: gatewayIPAddress_1
     bgpSettings: {
-      asn: 65515
+      asn: VWAN_ASN
       bgpPeeringAddress: bgpPeeringAddress_1
     }
   }

@@ -7,21 +7,17 @@ param vnet_Name string
 @description('Address Prefix of the Virtual Network')
 param vnet_AddressPrefix string
 
-@description('Name of the Virtual Network')
-param subnet_Name string
-
-@description('Address Prefix of the Subnet')
-param subnet_AddressPrefix string
-
 @description('Name of the Network Security Group')
 param defaultNSG_Name string
 
-// @description('Name of the Network Security Group Rule')
-// param defaultNSG_RuleName string
+@description('Name of the Route Table')
+param routeTable_Name string
 
-// @description('Name of the Network Security Group Rule')
-// param defaultNSG_RulePriority string
+@description('Name of the Virtual Network')
+param subnet_General_Name string
 
+@description('Address Prefix of the Subnet')
+param subnet_General_AddressPrefix string
 
 resource vnet 'Microsoft.Network/virtualNetworks@2022-09-01' = {
   name: vnet_Name
@@ -32,21 +28,32 @@ resource vnet 'Microsoft.Network/virtualNetworks@2022-09-01' = {
         vnet_AddressPrefix
       ]
     }
+    subnets: [
+      {
+        name: subnet_General_Name
+        properties: {
+          addressPrefix: subnet_General_AddressPrefix
+          networkSecurityGroup: {
+            id: nsg.id
+          }
+          routeTable: {
+            id: routeTable.id
+          }
+          delegations: []
+          privateEndpointNetworkPolicies: 'Disabled'
+          privateLinkServiceNetworkPolicies: 'Enabled'
+        }
+      }
+    ]
     enableDdosProtection: false
   }
 }
 
-resource subnet 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' = {
-  parent: vnet
-  name: subnet_Name
+resource routeTable 'Microsoft.Network/routeTables@2023-02-01' = {
+  name: routeTable_Name
+  location: location
   properties: {
-    addressPrefix: subnet_AddressPrefix
-    networkSecurityGroup: {
-      id: nsg.id
-    }
-    delegations: []
-    privateEndpointNetworkPolicies: 'Disabled'
-    privateLinkServiceNetworkPolicies: 'Enabled'
+    disableBgpRoutePropagation: false
   }
 }
 
@@ -76,3 +83,7 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2022-09-01' = {
 //     destinationAddressPrefixes: []
 //   }
 // }
+
+output generalSubnetID string = vnet.properties.subnets[0].id
+output vnetName string = vnet.name
+output vnetResourceID string = vnet.id

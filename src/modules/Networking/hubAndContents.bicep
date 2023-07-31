@@ -1,5 +1,5 @@
 @description('Azure Datacenter location that the main resouces will be deployed to.')
-param location string = resourceGroup().location
+param location string
 
 @description('ID of the existing VWAN')
 param vwanID string
@@ -34,26 +34,26 @@ param AzFW_SKU string = 'Basic'
 param AzFWPolicy_Name string = 'AzFW_Policy${vHub_Iteration}'
 
 @description('Deploys a S2S VPN if true')
-param usingVPN bool = true
+param usingVPN bool
 
 @description('Name of the Azure Virtual Network Gateway in vHub A')
 param AzureVNG_Name string = 'vng${vHub_Iteration}'
 
-@description('VPN Shared Key used for authenticating VPN connections')
-@secure()
-param vpn_SharedKey string
+// @description('VPN Shared Key used for authenticating VPN connections')
+// @secure()
+// param vpn_SharedKey string
 
-@description('Name of the Destination VPN Site')
-param destinationVPN_Name string = 'MainVPNSite'
+// @description('Name of the Destination VPN Site')
+// param destinationVPN_Name string = 'MainVPNSite'
 
-@description('Public IP Address of the Destination VPN Site')
-param destinationVPN_PublicAddress string = '20.12.2.155'
+// @description('Public IP Address of the Destination VPN Site')
+// param destinationVPN_PublicAddress string = '20.12.2.155'
 
-@description('BGP Address of the Destination VPN Site')
-param destinationVPN_BGPAddress string = '10.100.0.126'
+// @description('BGP Address of the Destination VPN Site')
+// param destinationVPN_BGPAddress string = '10.100.0.126'
 
-@description('Autonomous System Number (ASN) of the Destination VPN Site')
-param destinationVPN_ASN int = 65516
+// @description('Autonomous System Number (ASN) of the Destination VPN Site')
+// param destinationVPN_ASN int = 65516
 
 // VNET Start
 @description('Current Virtual Network Iteration')
@@ -76,11 +76,8 @@ param subnet_AddressPrefix string = '10.${vHub_Iteration}${vnet_Iteration}.0.0/2
 @description('Name of the Network Security Group')
 param defaultNSG_Name string = 'Default_NSG${vHub_Iteration}'
 
-@description('Name of the Network Security Group Rule')
-param defaultNSG_RuleName string = 'rule${vnet_Iteration}'
-
-@description('Name of the Network Security Group Rule')
-param defaultNSG_RulePriority string = '10${vnet_Iteration}'
+@description('Name of the Route Table')
+param routeTable_Name string = 'General_RouteTable_vhub_${vHub_Iteration}'
 
 @description('Name of the Virtual Machine')
 param vm_Name string = 'NetTestVM${vHub_Iteration}'
@@ -146,103 +143,6 @@ resource AzureVNG 'Microsoft.Network/vpnGateways@2022-07-01' = if (usingVPN) {
   }
 }
 
-resource vpn_Site 'Microsoft.Network/vpnSites@2022-11-01' = if (usingVPN) {
-  name: 'to${destinationVPN_Name}'
-  location: location
-  properties: {
-    deviceProperties: {
-      deviceVendor: 'Azure'
-      linkSpeedInMbps: 0
-    }
-    virtualWan: {
-      id: vwanID
-    }
-    isSecuritySite: false
-    o365Policy: {
-      breakOutCategories: {
-        optimize: false
-        allow: false
-        default: false
-      }
-    }
-    vpnSiteLinks: [
-      {
-        name: destinationVPN_Name
-        properties: {
-          ipAddress: destinationVPN_PublicAddress
-          bgpProperties: {
-            asn: destinationVPN_ASN
-            bgpPeeringAddress: destinationVPN_BGPAddress
-          }
-          linkProperties: {
-            linkProviderName: 'Azure'
-            linkSpeedInMbps: 200
-          }
-        }
-      }
-    ]
-  }
-}
-
-
-resource vpn_Connection 'Microsoft.Network/vpnGateways/vpnConnections@2022-11-01' = if (usingVPN) {
-  parent: AzureVNG
-  name: 'Connection-to_main_hub'
-  properties: {
-    routingConfiguration: {
-      associatedRouteTable: {
-        id: vHub_RouteTable_Default.id
-      }
-      propagatedRouteTables: {
-        labels: [
-          'default'
-        ]
-        ids: [
-          {
-            id: vHub_RouteTable_Default.id
-          }
-        ]
-      }
-    }
-    enableInternetSecurity: false
-    remoteVpnSite: {
-      id: vpn_Site.id
-    }
-    vpnLinkConnections: [
-      {
-        name: 'Main'
-        properties: {
-          vpnSiteLink: {
-            id: vpn_Site.properties.vpnSiteLinks[0].id
-          }
-          connectionBandwidth: 10
-          ipsecPolicies: [
-            {
-              saLifeTimeSeconds: 3600
-              saDataSizeKilobytes: 0
-              ipsecEncryption: 'AES256'
-              ipsecIntegrity: 'SHA256'
-              ikeEncryption: 'AES256'
-              ikeIntegrity: 'SHA256'
-              dhGroup: 'DHGroup14'
-              pfsGroup: 'None'
-            }
-          ]
-          vpnConnectionProtocolType: 'IKEv2'
-          sharedKey: vpn_SharedKey
-          enableBgp: true
-          enableRateLimiting: false
-          useLocalAzureIpAddress: false
-          usePolicyBasedTrafficSelectors: false
-          routingWeight: 0
-          vpnLinkConnectionMode: 'Default'
-          vpnGatewayCustomBgpAddresses: []
-        }
-      }
-    ]
-  }
-}
-
 resource AzFW_Policy 'Microsoft.Network/firewallPolicies@2022-07-01' = if (usingAzFW) {
   name: AzFWPolicy_Name
   location: location
@@ -276,58 +176,16 @@ resource AzFW 'Microsoft.Network/azureFirewalls@2022-07-01' = if (usingAzFW) {
   }
 }
 
-
-resource vnet 'Microsoft.Network/virtualNetworks@2022-09-01' = {
-  name: vnet_Name
-  location: location
-  properties: {
-    addressSpace: {
-      addressPrefixes: [
-        vnet_AddressPrefix
-      ]
-    }
-    subnets: [
-      {
-        name: subnet_Name
-        properties: {
-          addressPrefix: subnet_AddressPrefix
-        networkSecurityGroup: {
-          id: nsg.id
-        }
-        delegations: []
-        privateEndpointNetworkPolicies: 'Disabled'
-        privateLinkServiceNetworkPolicies: 'Enabled'
-        }
-      }
-    ]
-    enableDdosProtection: false
-  }
-}
-
-resource nsg 'Microsoft.Network/networkSecurityGroups@2022-09-01' = {
-  name: defaultNSG_Name
-  location: location
-  properties: {
-  }
-}
-
-resource nsgRule 'Microsoft.Network/networkSecurityGroups/securityRules@2022-09-01' = {
-  parent: nsg
-  name: defaultNSG_RuleName
-  properties: {
-    description: 'test'
-    protocol: '*'
-    sourcePortRange: '*'
-    destinationPortRange: '8080'
-    sourceAddressPrefix: '10.0.0.1/32'
-    destinationAddressPrefix: '10.5${vnet_Iteration}.0.4'
-    access: 'Allow'
-    priority: int(defaultNSG_RulePriority)
-    direction: 'Inbound'
-    sourcePortRanges: []
-    destinationPortRanges: []
-    sourceAddressPrefixes: []
-    destinationAddressPrefixes: []
+module vnet1 'VirtualNetworkSpoke.bicep' = {
+  name: 'vnet${vHub_Iteration}'
+  params: {
+    defaultNSG_Name: defaultNSG_Name
+    location: location
+    routeTable_Name: routeTable_Name
+    subnet_General_AddressPrefix: subnet_AddressPrefix
+    subnet_General_Name: subnet_Name
+    vnet_AddressPrefix: vnet_AddressPrefix
+    vnet_Name: vnet_Name
   }
 }
 
@@ -336,7 +194,7 @@ module vm1 '../Compute/NetTestVM.bicep' = {
   params: {
     location: location
     nic_Name: nic_Name
-    subnetID: vnet.properties.subnets[0].id
+    subnetID: vnet1.outputs.generalSubnetID
     vm_AdminPassword: vm_AdminPassword
     vm_AdminUserName: vm_AdminUserName
     vm_Name: vm_Name
@@ -344,10 +202,11 @@ module vm1 '../Compute/NetTestVM.bicep' = {
 }
 
 // Values for connecting the vHub to a Virtual Network
-output vHubName string = vHub_Name
+output vHubName string = vHub.name
 output vHubRouteTableDefaultID string = vHub_RouteTable_Default.id
-output vnetID1 string = vnet.id
-output vnetName1 string = vnet_Name
+output vnetID1 string = vnet1.outputs.vnetResourceID
+output vnetName1 string = vnet1.outputs.vnetName
+output vpnName string = AzureVNG.name
 
 // values for destination Local Network Gateway
 output vpnPubIP0 string = usingVPN ? AzureVNG.properties.bgpSettings.bgpPeeringAddresses[0].tunnelIpAddresses[0] : ''

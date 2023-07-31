@@ -23,7 +23,7 @@ if (!$subID) {
 }
 Set-AzContext -Subscription $subID
 
-$vnggateway = Get-AzVirtualNetworkGateway -ResourceGroupName 'Main' -ResourceName Main_Hub_VNG
+# $vnggateway = Get-AzVirtualNetworkGateway -ResourceGroupName 'Main' -ResourceName Main_Hub_VNG
 
 $rgName = "Bicep_VWAN_Prod"
 $location_Main = "eastus2"
@@ -35,8 +35,7 @@ New-AzResourceGroup -Name $rgName -Location $location_Main
 Write-Host "`nStarting Bicep Deployment.."
 New-AzResourceGroupDeployment -ResourceGroupName $rgName `
 -TemplateParameterFile $mainParameterFile -TemplateFile $mainBicepFile `
--mainLocation $location_Main -branchLocation $location_Branch1 `
--existingVNGID $vnggateway.Id
+-mainLocation $location_Main -branchLocation $location_Branch1
 
 $vms = Get-AzVM -ResourceGroupName $rgName
 
@@ -51,7 +50,6 @@ foreach ($vm in $vms) {
         Write-Host "Stopping ${vmName}.."
         Stop-AzVM -ResourceGroupName $vm.ResourceGroupName -Name $vm.Name -Force -AsJob
     }
-    
 }
 
 $end = get-date -UFormat "%s"
