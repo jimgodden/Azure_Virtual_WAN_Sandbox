@@ -13,6 +13,7 @@ choco install pstools -y
 
 New-Item -ItemType Directory -Name Tools -Path "c:\"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jimgodden/Azure-Virtual-WAN-Sandbox/main/scripts/installTools.ps1" -OutFile "c:\installTools.ps1"
+Set-Shortcut -ApplicationFilePath "c:\installTools.ps1" -DestinationFilePath "${DesktopFilePath}installTools.lnk"
 
 # Define variables for the IIS website and certificate
 $siteName = "Default Web Site"
