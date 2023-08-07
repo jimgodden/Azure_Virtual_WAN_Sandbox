@@ -12,7 +12,7 @@ Add-AppxPackage "c:\Microsoft.VCLibs.x64.14.00.Desktop.appx"
 Invoke-WebRequest -Uri "https://github.com/microsoft/terminal/releases/download/v1.16.10261.0/Microsoft.WindowsTerminal_Win10_1.16.10261.0_8wekyb3d8bbwe.msixbundle" -OutFile "c:\Microsoft.WindowsTerminal_Win10_1.16.10261.0_8wekyb3d8bbwe.msixbundle"
 Add-AppxPackage "c:\Microsoft.WindowsTerminal_Win10_1.16.10261.0_8wekyb3d8bbwe.msixbundle"
 
-Set-Shortcut -ApplicationFilePath "C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.16.10261.0_x64__8wekyb3d8bbwe" -DestinationFilePath "C:\Users\$ENV:USERNAME\Desktop\Terminal.lnk"
+# Set-Shortcut -ApplicationFilePath "C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.16.10261.0_x64__8wekyb3d8bbwe" -DestinationFilePath "C:\Users\$ENV:USERNAME\Desktop\Terminal.lnk"
 
 function Set-Shortcut {
     param (

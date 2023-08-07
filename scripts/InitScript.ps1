@@ -7,13 +7,13 @@ choco install powershell-core -y
 choco install python311 -y
 choco install vscode -y
 choco install wireshark -y
-Set-Shortcut -ApplicationFilePath "C:\Program Files\Wireshark\Wireshark.exe"  -DestinationFilePath "${DesktopFilePath}Wireshark.lnk"
+# Set-Shortcut -ApplicationFilePath "C:\Program Files\Wireshark\Wireshark.exe"  -DestinationFilePath "${DesktopFilePath}Wireshark.lnk"
 # $env:Path += ";C:\Program Files\Wireshark\"
 choco install pstools -y
 
-New-Item -ItemType Directory -Name Tools -Path "c:\"
+# New-Item -ItemType Directory -Name Tools -Path "c:\"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jimgodden/Azure-Virtual-WAN-Sandbox/main/scripts/installTools.ps1" -OutFile "c:\installTools.ps1"
-Set-Shortcut -ApplicationFilePath "c:\installTools.ps1" -DestinationFilePath "${DesktopFilePath}installTools.lnk"
+# Set-Shortcut -ApplicationFilePath "c:\installTools.ps1" -DestinationFilePath "${DesktopFilePath}installTools.lnk"
 
 # Define variables for the IIS website and certificate
 $siteName = "Default Web Site"
