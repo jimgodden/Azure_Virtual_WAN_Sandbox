@@ -1,5 +1,5 @@
 # ensures that Windows PowerShell is used
-powershell.exe
+Write-Host "Run this script in Windows PowerShell or else it will fail!"
 
 # npcap for using Wireshark for taking packet captures
 Invoke-WebRequest -Uri "https://npcap.com/dist/npcap-1.75.exe" -OutFile "c:\npcap-1.75.exe"
@@ -26,6 +26,3 @@ function Set-Shortcut {
     $shortcut.TargetPath = $ApplicationFilePath
     $shortcut.Save()
 }
-
-# Switches back to PowerShell Core
-pwsh.exe
