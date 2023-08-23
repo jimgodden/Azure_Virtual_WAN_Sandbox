@@ -58,14 +58,7 @@ resource OnPrem_VNG 'Microsoft.Network/virtualNetworkGateways@2023-02-01' = {
     activeActive: false
     bgpSettings: {
       asn: OnPrem_VNG_ASN
-      // bgpPeeringAddress: '10.210.0.254'
       peerWeight: 0
-      // bgpPeeringAddresses: [
-      //   {
-      //     ipconfigurationId: '${virtualNetworkGateways_OnPrem_VPN_name_resource.id}/ipConfigurations/default'
-      //     customBgpIpAddresses: []
-      //   }
-      // ]
     }
     vpnGatewayGeneration: 'Generation1'
     allowRemoteVnetTraffic: false
