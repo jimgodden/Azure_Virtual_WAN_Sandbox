@@ -18,8 +18,6 @@ param subnetID string
 param vm_ScriptFileUri string = 'https://mainjamesgstorage.blob.core.windows.net/scripts/InitScript.ps1'
 
 
-
-
 resource nic 'Microsoft.Network/networkInterfaces@2022-09-01' = {
   name: nic_Name
   location: location

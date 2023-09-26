@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.18.4.5664",
-      "templateHash": "18065576348361462687"
+      "templateHash": "6390976747658861486"
     }
   },
   "parameters": {
@@ -221,7 +221,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.18.4.5664",
-              "templateHash": "9719384621498275237"
+              "templateHash": "925089681434690957"
             }
           },
           "parameters": {
@@ -679,7 +679,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.18.4.5664",
-                      "templateHash": "7305738495822575466"
+                      "templateHash": "5110011929660191359"
                     }
                   },
                   "parameters": {
@@ -715,7 +715,7 @@
                     },
                     "vm_ScriptFileUri": {
                       "type": "string",
-                      "defaultValue": "https://raw.githubusercontent.com/jimgodden/Azure-Virtual-WAN-Sandbox/main/scripts/InitScript.ps1"
+                      "defaultValue": "https://mainjamesgstorage.blob.core.windows.net/scripts/InitScript.ps1"
                     }
                   },
                   "resources": [
@@ -1239,7 +1239,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.18.4.5664",
-              "templateHash": "9719384621498275237"
+              "templateHash": "925089681434690957"
             }
           },
           "parameters": {
@@ -1697,7 +1697,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.18.4.5664",
-                      "templateHash": "7305738495822575466"
+                      "templateHash": "5110011929660191359"
                     }
                   },
                   "parameters": {
@@ -1733,7 +1733,7 @@
                     },
                     "vm_ScriptFileUri": {
                       "type": "string",
-                      "defaultValue": "https://raw.githubusercontent.com/jimgodden/Azure-Virtual-WAN-Sandbox/main/scripts/InitScript.ps1"
+                      "defaultValue": "https://mainjamesgstorage.blob.core.windows.net/scripts/InitScript.ps1"
                     }
                   },
                   "resources": [
@@ -2249,7 +2249,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.18.4.5664",
-              "templateHash": "5623212814214723167"
+              "templateHash": "6899819163810777089"
             }
           },
           "parameters": {
@@ -3214,7 +3214,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.18.4.5664",
-                      "templateHash": "7305738495822575466"
+                      "templateHash": "5110011929660191359"
                     }
                   },
                   "parameters": {
@@ -3250,7 +3250,7 @@
                     },
                     "vm_ScriptFileUri": {
                       "type": "string",
-                      "defaultValue": "https://raw.githubusercontent.com/jimgodden/Azure-Virtual-WAN-Sandbox/main/scripts/InitScript.ps1"
+                      "defaultValue": "https://mainjamesgstorage.blob.core.windows.net/scripts/InitScript.ps1"
                     }
                   },
                   "resources": [
