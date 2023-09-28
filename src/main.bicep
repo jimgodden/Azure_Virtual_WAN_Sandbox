@@ -117,7 +117,7 @@ module branchHub './modules/Networking/hubAndContents.bicep' = if (multiRegion) 
     vm_AdminPassword: vm_AdminPassword
     vHub_Iteration: 2
     usingVPN: true
-    usingAzFW: true
+    usingAzFW: false
   }
 }
 
@@ -157,6 +157,7 @@ module OnPremResources 'modules/OnPremResources/main_OnPremResources.bicep' = {
     vm_AdminPassword: vm_AdminPassword
     vm_AdminUserName: vm_AdminUserName
     OnPrem_VNG_ASN: OnPrem_ASN
+    usingAzFW: false
   }
 }
 

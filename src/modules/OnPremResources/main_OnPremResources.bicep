@@ -7,6 +7,9 @@ param vnet_Name string = 'OnPrem_VNET'
 @description('Address Prefix of the Virtual Network.')
 param vnet_AddressPrefix string = '10.210.0.0/16'
 
+@description('Deploys a Az FW if true')
+param usingAzFW bool
+
 @description('Name of the Azure Firewall')
 param AzFW_Name string = 'OnPrem_AzFW'
 
@@ -103,7 +106,7 @@ module vnetHub 'Networking/VirtualNetworkHub.bicep' = {
   }
 }
 
-module firewall 'Networking/AzureFirewall.bicep' = {
+module firewall 'Networking/AzureFirewall.bicep' =  if (usingAzFW) {
   name: 'OnPrem_AzFW'
   params: {
     AzFW_Name: AzFW_Name

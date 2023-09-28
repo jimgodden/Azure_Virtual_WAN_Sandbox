@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.18.4.5664",
-      "templateHash": "6390976747658861486"
+      "templateHash": "597662014405576692"
     }
   },
   "parameters": {
@@ -1229,7 +1229,7 @@
             "value": true
           },
           "usingAzFW": {
-            "value": true
+            "value": false
           }
         },
         "template": {
@@ -2240,6 +2240,9 @@
           },
           "OnPrem_VNG_ASN": {
             "value": "[parameters('OnPrem_ASN')]"
+          },
+          "usingAzFW": {
+            "value": false
           }
         },
         "template": {
@@ -2249,7 +2252,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.18.4.5664",
-              "templateHash": "6899819163810777089"
+              "templateHash": "1464942077633301158"
             }
           },
           "parameters": {
@@ -2271,6 +2274,12 @@
               "defaultValue": "10.210.0.0/16",
               "metadata": {
                 "description": "Address Prefix of the Virtual Network."
+              }
+            },
+            "usingAzFW": {
+              "type": "bool",
+              "metadata": {
+                "description": "Deploys a Az FW if true"
               }
             },
             "AzFW_Name": {
@@ -2721,6 +2730,7 @@
               }
             },
             {
+              "condition": "[parameters('usingAzFW')]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2022-09-01",
               "name": "OnPrem_AzFW",
